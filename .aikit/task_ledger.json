@@ -1,12 +1,12 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "gauge-v1",
-    "last_phase": "phase 4",
+    "task_id": "gauge-extremes-v1",
+    "last_phase": "phase 3",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792828426.869289,
-    "completed_at": 1792828431.7023842
+    "updated_at": 1792828640.194347,
+    "completed_at": 1792828644.9195971
   },
   "checkpoints": [
     {
@@ -68,6 +68,46 @@
       "status": "completed",
       "timestamp": 1792828431.7023857,
       "timestamp_str": "2026-10-24 10:53:51"
+    },
+    {
+      "task_id": "gauge-extremes-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/1] Harden statistics and rendering for extreme finite values, and refuse a sum that leaves the float range",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792828625.1188824,
+      "timestamp_str": "2026-10-24 10:57:05",
+      "impact_assessment": {
+        "why": "A finite token such as 1e308 is inside the documented input contract, but the variance calculation overflowed and crashed stats; a numeric tool must handle the representable range or refuse with the triad.",
+        "benefits": "Statistics and charts stay finite across the float range; an unrepresentable sum fails cleanly; unit, CLI and dogfood regression steps pin both paths.",
+        "risks": "contract: ordinary-input statistics and JSON keys must not change; dependency: none; concurrency: none; state: none.",
+        "mitigation": "Scale by the largest magnitude, halve before adding even medians, normalize renderer ratios when the raw span overflows, and run the full gate plus a new dogfood step before the commit."
+      }
+    },
+    {
+      "task_id": "gauge-extremes-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[1/1] Scaled statistics, overflow-safe even medians and renderer ratios, plus unit, CLI and dogfood regressions; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792828640.194347,
+      "timestamp_str": "2026-10-24 10:57:20",
+      "handoff": {
+        "state": "54 tests and 19 dogfood steps pass",
+        "next": "commit the extreme-value fix",
+        "evidence": "aikit check gauge 5/5"
+      }
+    },
+    {
+      "task_id": "gauge-extremes-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'gauge-extremes-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792828644.9195986,
+      "timestamp_str": "2026-10-24 10:57:24"
     }
   ]
 }

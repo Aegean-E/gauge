@@ -125,7 +125,15 @@ def _bars(args: argparse.Namespace) -> int:
 
 def _stats(args: argparse.Namespace) -> int:
     """Print the summary table, or its stable JSON object."""
-    summary = summarize(_read_values(args))
+    try:
+        summary = summarize(_read_values(args))
+    except ValueError as exc:
+        raise InputError(
+            str(exc),
+            "gauge prints only finite statistics, so a sum outside the float range is refused "
+            "instead of shown as infinity.",
+            "summarize fewer or smaller values, or pre-scale the series before piping it.",
+        ) from None
     if args.json:
         print(json.dumps(summary.as_dict(), indent=2, allow_nan=False))
     else:

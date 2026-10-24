@@ -113,6 +113,10 @@ The definitions are fixed so two runs cannot disagree (ADR-002):
 `--json` prints a single object with the keys `count`, `sum`, `min`, `max`, `mean`, `median`,
 `p90` and `stdev`, in that order.
 
+The computation scales by the largest magnitude, so values near the float limit (for example
+`1e308` and `-1e308`) still produce finite statistics. A sum that cannot be represented as a
+float is refused with the error triad instead of printed as infinity.
+
 ## 🎨 Rendering
 
 Sparklines use eight levels, from `▁` to `█`, and a flat series maps to the middle level. A
@@ -166,7 +170,7 @@ runner use the module form so they never depend on an installed copy.
 
 ## 🧪 Testing and Dogfooding
 
-- `python -m unittest discover -s tests -t .` runs 47 fast unit and command-line tests.
+- `python -m unittest discover -s tests -t .` runs 54 fast unit and command-line tests.
 - `python tools/dogfood.py` uses the product as a user would, then attacks empty input, bad
   tokens, non-finite values, impossible widths, conflicting sources, a missing file, an unknown
   flag and a legacy output encoding. It runs every child in a temporary sandbox, kills the whole

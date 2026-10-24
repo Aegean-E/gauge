@@ -169,6 +169,13 @@ def golden_path(box: Path, report: Report) -> None:
     report.step(code == 0 and "gauge demo" in out and "median" in out,
                 "the demo shows both surfaces", f"exit {code}")
 
+    code, out, _ = run_cli(box, "stats", "1e308", "-1e308", "--json")
+    try:
+        ok = code == 0 and json.loads(out)["stdev"] == 1e308
+    except (ValueError, KeyError):
+        ok = False
+    report.step(ok, "extreme finite values stay finite", f"exit {code}")
+
 
 def chaos(box: Path, report: Report) -> None:
     """Empty, malformed and hostile input, plus a legacy output encoding."""
@@ -195,6 +202,10 @@ def chaos(box: Path, report: Report) -> None:
     code, _, err = run_cli(box, "spark", "1", "--file", "values.txt")
     report.step(code == 2 and "both positional" in err,
                 "two input sources are refused", f"exit {code}")
+
+    code, _, err = run_cli(box, "stats", "1e308", "1e308")
+    report.step(code == 2 and "sum exceeds" in err and "Fix:" in err,
+                "an unrepresentable sum is refused", f"exit {code}")
 
     code, _, _ = run_cli(box, "stats", "1", "2", "--width", "5")
     report.step(code == 2, "an unknown flag is refused", f"exit {code}")

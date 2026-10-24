@@ -28,6 +28,13 @@ class SparklineTests(unittest.TestCase):
         rendered = sparkline(list(range(100)), width=20)
         self.assertEqual(20, len(rendered))
 
+    def test_extreme_opposite_signs_render_without_overflow(self) -> None:
+        self.assertEqual("\u2588\u2581", sparkline([1e308, -1e308], width=2))
+        self.assertEqual(
+            " 1e+308       |#####\n-1e+308  #####|",
+            bar_chart([1e308, -1e308], width=11, ascii_only=True),
+        )
+
     def test_an_empty_series_is_refused(self) -> None:
         with self.assertRaises(ValueError):
             sparkline([], width=10)
@@ -41,6 +48,10 @@ class ResampleTests(unittest.TestCase):
 
     def test_a_series_within_the_width_is_unchanged(self) -> None:
         self.assertEqual([1, 2, 3], resample([1, 2, 3], 5))
+
+    def test_bucket_averages_of_extreme_values_do_not_overflow(self) -> None:
+        self.assertEqual([1e308], resample([1e308, 1e308], 1))
+        self.assertEqual([5e307], resample([1e308, 0.0], 1))
 
     def test_a_zero_width_is_refused(self) -> None:
         with self.assertRaises(ValueError):

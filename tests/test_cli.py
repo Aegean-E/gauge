@@ -123,6 +123,20 @@ class GaugeCliTests(unittest.TestCase):
         self.assertEqual(3, len(lines))
         self.assertTrue(all("|" in line for line in lines))
 
+    def test_extreme_opposite_signs_summarize_to_finite_values(self) -> None:
+        code, out, _ = self._run(["stats", "1e308", "-1e308", "--json"])
+        data = json.loads(out)
+        self.assertEqual(0, code)
+        self.assertEqual(0.0, data["mean"])
+        self.assertEqual(1e308, data["stdev"])
+
+    def test_an_unrepresentable_sum_is_refused_with_the_triad(self) -> None:
+        code, _, err = self._run(["stats", "1e308", "1e308"])
+        self.assertEqual(2, code)
+        self.assertIn("sum exceeds", err)
+        self.assertIn("Why:", err)
+        self.assertIn("Fix:", err)
+
     def test_demo_shows_both_surfaces(self) -> None:
         code, out, _ = self._run(["demo"])
         self.assertEqual(0, code)

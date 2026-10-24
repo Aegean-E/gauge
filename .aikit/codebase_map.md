@@ -8,9 +8,9 @@
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `10`
 - **Total Classes**: `12`
-- **Total Top-Level Functions**: `32`
-- **Total Class Methods**: `55`
-- **Total Source Lines**: `1035`
+- **Total Top-Level Functions**: `33`
+- **Total Class Methods**: `62`
+- **Total Source Lines**: `1119`
 
 ---
 
@@ -33,7 +33,7 @@
 ### [`gauge/cli.py`](gauge/cli.py)
 > *The gauge command line: read one numeric source, then render or summarize it.*
 
-**Size**: `215` lines (`8005` bytes)
+**Size**: `223` lines (`8349` bytes)
 
 **Classes:**
 - `class InputError` - *A request gauge cannot carry out, carrying the Why/Fix remediation triad.*
@@ -60,11 +60,12 @@
 ### [`gauge/render.py`](gauge/render.py)
 > *Text renderers: sparklines, signed bar charts and a statistics table.*
 
-**Size**: `121` lines (`4540` bytes)
+**Size**: `133` lines (`4959` bytes)
 
 **Functions:**
 - `def format_number(value)` - *A compact human label for one value, with negative zero folded to zero.*
 - `def resample(values, width)` - *`values` unchanged when it already fits, else `width` bucket averages.*
+- `def _ratio(value, low, high)` - *Where `value` sits in [low, high], scaled when the raw span would overflow.*
 - `def _level(value, low, high, levels)` - *The half-up level of `value` between `low` and `high`; a flat series sits in the middle.*
 - `def sparkline(values, width, ascii_only)` - *One character per value, resampled to `width`; eight levels from lowest to highest.*
 - `def _position(value, low, high, width)` - *The half-up column of `value` in a chart of `width` cells.*
@@ -77,7 +78,7 @@
 ### [`gauge/series.py`](gauge/series.py)
 > *Numeric input parsing and summary statistics for gauge.*
 
-**Size**: `101` lines (`3182` bytes)
+**Size**: `114` lines (`3828` bytes)
 
 **Classes:**
 - `class Summary` - *A series' count, extrema, centre and spread, with a stable JSON shape.*
@@ -100,7 +101,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *Unit tests for the gauge command line: sources, surfaces, refusals and exit codes.*
 
-**Size**: `148` lines (`5961` bytes)
+**Size**: `162` lines (`6555` bytes)
 
 **Classes:**
 - `class _FakeStdin` - *A non-interactive or interactive standard input with fixed text.*
@@ -122,6 +123,8 @@
   - Method `.test_width_outside_the_bounds_is_refused()`
   - Method `.test_a_missing_file_is_a_runtime_error()`
   - Method `.test_signed_bars_keep_their_axis()`
+  - Method `.test_extreme_opposite_signs_summarize_to_finite_values()`
+  - Method `.test_an_unrepresentable_sum_is_refused_with_the_triad()`
   - Method `.test_demo_shows_both_surfaces()`
   - Method `.test_a_legacy_encoding_falls_back_to_ascii()`
   - Method `.test_version_prints_the_package_version()`
@@ -131,7 +134,7 @@
 ### [`tests/test_render.py`](tests/test_render.py)
 > *Unit tests for gauge's deterministic text renderers.*
 
-**Size**: `98` lines (`3508` bytes)
+**Size**: `109` lines (`4021` bytes)
 
 **Classes:**
 - `class SparklineTests` - *Eight fixed levels, a flat middle and proportional resampling.*
@@ -140,10 +143,12 @@
   - Method `.test_the_ascii_twin_uses_its_own_middle_level()`
   - Method `.test_a_short_series_is_not_padded_or_upsampled()`
   - Method `.test_a_long_series_resamples_to_exactly_the_width()`
+  - Method `.test_extreme_opposite_signs_render_without_overflow()`
   - Method `.test_an_empty_series_is_refused()`
 - `class ResampleTests` - *Proportional buckets keep the shape of the original series.*
   - Method `.test_five_values_become_two_bucket_averages()`
   - Method `.test_a_series_within_the_width_is_unchanged()`
+  - Method `.test_bucket_averages_of_extreme_values_do_not_overflow()`
   - Method `.test_a_zero_width_is_refused()`
 - `class BarChartTests` - *Rows share a zero axis and keep a visible block for tiny values.*
   - Method `.test_positive_bars_grow_from_the_left_axis()`
@@ -159,7 +164,7 @@
 ### [`tests/test_series.py`](tests/test_series.py)
 > *Unit tests for gauge's input parsing and summary statistics.*
 
-**Size**: `95` lines (`3646` bytes)
+**Size**: `110` lines (`4292` bytes)
 
 **Classes:**
 - `class ParseNumbersTests` - *One strict reader for positional arguments, files and pipes.*
@@ -179,6 +184,9 @@
   - Method `.test_even_series_averages_the_middle_pair()`
   - Method `.test_stdev_is_the_population_form()`
   - Method `.test_a_flat_series_has_zero_stdev()`
+  - Method `.test_extreme_opposite_signs_stay_finite()`
+  - Method `.test_even_median_of_extreme_values_does_not_overflow()`
+  - Method `.test_an_unrepresentable_sum_is_refused()`
   - Method `.test_json_object_has_the_documented_keys()`
   - Method `.test_an_empty_or_non_finite_series_is_refused()`
 
@@ -187,7 +195,7 @@
 ### [`tools/dogfood.py`](tools/dogfood.py)
 > *Gauge's dogfood runner: use the product as a user does, then attack its input edge.*
 
-**Size**: `245` lines (`9995` bytes)
+**Size**: `256` lines (`10462` bytes)
 
 **Classes:**
 - `class Report` - *Collects step outcomes: the console sees a summary, the log sees everything.*

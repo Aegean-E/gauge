@@ -82,13 +82,26 @@ def summarize(values: List[float]) -> Summary:
         raise ValueError("cannot summarize a series with a non-finite value.")
     ordered = sorted(values)
     count = len(values)
-    total = math.fsum(values)
+    try:
+        total = math.fsum(values)
+    except OverflowError:
+        raise ValueError("the sum exceeds the floating-point range.") from None
+    if not math.isfinite(total):
+        raise ValueError("the sum exceeds the floating-point range.")
     mean = total / count
     if count % 2:
         median = ordered[count // 2]
     else:
-        median = (ordered[count // 2 - 1] + ordered[count // 2]) / 2.0
-    variance = math.fsum((value - mean) ** 2 for value in values) / count
+        # Halving before adding keeps a pair of huge same-sign values inside the range.
+        median = ordered[count // 2 - 1] / 2.0 + ordered[count // 2] / 2.0
+    scale = max(abs(value) for value in values)
+    if scale == 0:
+        stdev = 0.0
+    else:
+        # Normalizing by the largest magnitude keeps squares finite for values near 1e308.
+        normalized_mean = math.fsum(value / scale for value in values) / count
+        variance = math.fsum((value / scale - normalized_mean) ** 2 for value in values) / count
+        stdev = min(scale, math.sqrt(variance) * scale)
     return Summary(
         count=count,
         total=total,
@@ -97,5 +110,5 @@ def summarize(values: List[float]) -> Summary:
         mean=mean,
         median=median,
         p90=percentile(values, 0.9),
-        stdev=math.sqrt(variance),
+        stdev=stdev,
     )

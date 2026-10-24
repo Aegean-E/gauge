@@ -24,7 +24,7 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Status**: Accepted
 - **Context**: Mean, median, p90 and standard deviation each have several defensible definitions; picking one silently per call site would make two reports of the same data disagree.
 - **Decision**: The mean is `fsum(values) / n`; the median is the middle value, or the average of the middle pair when `n` is even; p90 is nearest-rank, the `ceil(0.9 * n)`-th smallest value; the standard deviation divides by `n` (population form). NaN and infinity are refused at parse time so no statistic can be undefined.
-- **Consequences**: The numbers match the common monitoring conventions and are documented in the README. A consumer expecting a sample standard deviation must adjust it; that alternative is deliberately not a flag in v1.
+- **Consequences**: The numbers match the common monitoring conventions and are documented in the README. A consumer expecting a sample standard deviation must adjust it; that alternative is deliberately not a flag in v1. The calculation scales by the largest magnitude so extreme finite values stay finite, and a sum outside the float range is refused rather than shown as infinity.
 
 ### ADR-003: Deterministic eight-level rendering with an ASCII twin
 - **Date**: 2026-10-24

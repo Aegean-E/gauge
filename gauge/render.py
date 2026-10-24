@@ -1,5 +1,6 @@
 """Text renderers: sparklines, signed bar charts and a statistics table."""
 
+import math
 from typing import List, Sequence
 
 from gauge.series import Summary
@@ -36,15 +37,26 @@ def resample(values: Sequence[float], width: int) -> List[float]:
         start = index * count // width
         end = max(start + 1, (index + 1) * count // width)
         bucket = values[start:end]
-        sampled.append(sum(bucket) / len(bucket))
+        sampled.append(math.fsum(value / len(bucket) for value in bucket))
     return sampled
+
+
+def _ratio(value: float, low: float, high: float) -> float:
+    """Where `value` sits in [low, high], scaled when the raw span would overflow."""
+    if high == low:
+        return 0.5
+    span = high - low
+    if math.isfinite(span):
+        return (value - low) / span
+    scale = max(abs(low), abs(high))
+    return ((value / scale) - (low / scale)) / ((high / scale) - (low / scale))
 
 
 def _level(value: float, low: float, high: float, levels: int) -> int:
     """The half-up level of `value` between `low` and `high`; a flat series sits in the middle."""
     if high == low:
         return levels // 2
-    scaled = (value - low) / (high - low) * (levels - 1)
+    scaled = _ratio(value, low, high) * (levels - 1)
     return min(levels - 1, max(0, int(scaled + 0.5)))
 
 
@@ -63,7 +75,7 @@ def _position(value: float, low: float, high: float, width: int) -> int:
     """The half-up column of `value` in a chart of `width` cells."""
     if high == low:
         return width // 2
-    scaled = (value - low) / (high - low) * (width - 1)
+    scaled = _ratio(value, low, high) * (width - 1)
     return min(width - 1, max(0, int(scaled + 0.5)))
 
 

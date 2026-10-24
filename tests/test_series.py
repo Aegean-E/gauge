@@ -74,6 +74,21 @@ class SummaryTests(unittest.TestCase):
     def test_a_flat_series_has_zero_stdev(self) -> None:
         self.assertEqual(0.0, summarize([5.0, 5.0, 5.0]).stdev)
 
+    def test_extreme_opposite_signs_stay_finite(self) -> None:
+        summary = summarize([1e308, -1e308])
+        self.assertEqual(0.0, summary.total)
+        self.assertEqual(0.0, summary.mean)
+        self.assertEqual(0.0, summary.median)
+        self.assertEqual(1e308, summary.stdev)
+        self.assertEqual(1e308, summary.maximum)
+
+    def test_even_median_of_extreme_values_does_not_overflow(self) -> None:
+        self.assertEqual(5e307, summarize([1e308, 0.0]).median)
+
+    def test_an_unrepresentable_sum_is_refused(self) -> None:
+        with self.assertRaisesRegex(ValueError, "sum exceeds"):
+            summarize([1e308, 1e308])
+
     def test_json_object_has_the_documented_keys(self) -> None:
         data = summarize([2.0, 3.0, 5.0, 8.0]).as_dict()
         self.assertEqual(
