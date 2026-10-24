@@ -183,7 +183,86 @@ class GaugeCliTests(unittest.TestCase):
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
             main(["--version"])
         self.assertEqual(0, raised.exception.code)
-        self.assertIn("gauge 1.1.0", out.getvalue())
+        self.assertIn("gauge 1.2.0", out.getvalue())
+
+    def test_field_and_delimiter_extract_numbers_from_csv(self) -> None:
+        csv_text = "service-a,10.0,ok\nservice-b,20.0,ok\nservice-c,30.0,ok\n"
+        code, out, _ = self._run(["stats", "-f", "2", "-d", ",", "--json"], stdin=_FakeStdin(csv_text))
+        self.assertEqual(0, code)
+        data = json.loads(out)
+        self.assertEqual(3, data["count"])
+        self.assertEqual(20.0, data["mean"])
+
+    def test_field_out_of_bounds_refused_with_triad(self) -> None:
+        code, _, err = self._run(["spark", "-f", "5", "a b c"])
+        self.assertEqual(2, code)
+        self.assertIn("fewer than 5 columns", err)
+        self.assertIn("Why:", err)
+        self.assertIn("Fix:", err)
+
+    def test_invalid_field_refused(self) -> None:
+        code, _, err = self._run(["spark", "-f", "0", "1 2 3"])
+        self.assertEqual(2, code)
+        self.assertIn("--field must be 1 or greater", err)
+        self.assertIn("Why:", err)
+        self.assertIn("Fix:", err)
+
+    def test_empty_delimiter_refused(self) -> None:
+        code, _, err = self._run(["spark", "-d", "", "1 2 3"])
+        self.assertEqual(2, code)
+        self.assertIn("--delimiter cannot be empty", err)
+        self.assertIn("Why:", err)
+        self.assertIn("Fix:", err)
+
+    def test_stats_with_custom_percentiles_table(self) -> None:
+        vals = [str(n) for n in range(1, 101)]
+        code, out, _ = self._run(["stats", "--percentiles", "50,95,99", *vals])
+        self.assertEqual(0, code)
+        self.assertIn("p50", out)
+        self.assertIn("p95", out)
+        self.assertIn("p99", out)
+        self.assertNotIn("p90", out)
+
+    def test_stats_with_custom_percentiles_json(self) -> None:
+        vals = [str(n) for n in range(1, 101)]
+        code, out, _ = self._run(["stats", "--percentiles", "50,95", "--json", *vals])
+        self.assertEqual(0, code)
+        data = json.loads(out)
+        self.assertIn("percentiles", data)
+        self.assertEqual(50.0, data["percentiles"]["50"])
+        self.assertEqual(95.0, data["percentiles"]["95"])
+        self.assertEqual(100, data["count"])
+
+    def test_invalid_percentiles_refused_with_triad(self) -> None:
+        code, _, err = self._run(["stats", "--percentiles", "0,50", "1", "2"])
+        self.assertEqual(2, code)
+        self.assertIn("must be between 0 and 100", err)
+        self.assertIn("Why:", err)
+        self.assertIn("Fix:", err)
+
+    def test_box_renders_ascii_and_unicode(self) -> None:
+        vals = [str(n) for n in range(0, 101)]
+        code, out, _ = self._run(["box", "--ascii", "--width", "21", *vals])
+        self.assertEqual(0, code)
+        self.assertIn("|----[====|====]----|", out)
+        self.assertIn("min: 0", out)
+        self.assertIn("max: 100", out)
+
+        code, out, _ = self._run(["box", "--width", "21", *vals])
+        self.assertEqual(0, code)
+        self.assertIn("\u251c\u2500\u2500\u2500\u2500[", out)
+
+    def test_box_flat_series(self) -> None:
+        code, out, _ = self._run(["box", "5", "5", "5"])
+        self.assertEqual(0, code)
+        self.assertIn("[5]", out)
+
+    def test_box_narrow_width_refused(self) -> None:
+        code, _, err = self._run(["box", "--width", "3", "1", "2", "3"])
+        self.assertEqual(2, code)
+        self.assertIn("--width must be between 5 and 1000", err)
+        self.assertIn("Why:", err)
+        self.assertIn("Fix:", err)
 
 
 if __name__ == "__main__":

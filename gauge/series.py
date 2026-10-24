@@ -4,7 +4,7 @@ import math
 import re
 from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 _SEPARATOR = re.compile(r"[,\s]+")
 
@@ -21,10 +21,11 @@ class Summary:
     median: float
     p90: float
     stdev: float
+    custom_percentiles: Optional[Dict[str, float]] = None
 
     def as_dict(self) -> Dict[str, object]:
         """The `stats --json` object: stable keys and raw floating-point values."""
-        return {
+        base: Dict[str, object] = {
             "count": self.count,
             "sum": self.total,
             "min": self.minimum,
@@ -34,6 +35,9 @@ class Summary:
             "p90": self.p90,
             "stdev": self.stdev,
         }
+        if self.custom_percentiles is not None:
+            base["percentiles"] = self.custom_percentiles
+        return base
 
 
 @dataclass(frozen=True)
@@ -44,14 +48,83 @@ class Histogram:
     counts: Tuple[int, ...]
 
 
-def parse_numbers(chunks: Iterable[str]) -> List[float]:
-    """
-    Every finite number in whitespace- and comma-separated text chunks, in order.
+@dataclass(frozen=True)
+class BoxPlot:
+    """The 5-number summary: minimum, lower quartile, median, upper quartile, maximum."""
 
-    Raises ValueError naming the first token that is not a finite decimal number, or when the
-    combined text holds no number at all.
+    minimum: float
+    q1: float
+    median: float
+    q3: float
+    maximum: float
+
+
+def parse_numbers(
+    chunks: Iterable[str],
+    field: Optional[int] = None,
+    delimiter: Optional[str] = None,
+) -> List[float]:
     """
-    values: List[float] = []
+    Every finite number in text chunks, in order.
+
+    When `field` is given (1-indexed), each non-empty line is split by `delimiter` (or
+    whitespace/commas if None) and the field-th column is parsed.
+    When `delimiter` is given without `field`, chunks are split by `delimiter`.
+    When neither is given, whitespace and commas separate numbers.
+
+    Raises ValueError naming the first token that is not a finite decimal number, when a
+    line has fewer columns than `field`, or when the combined text holds no number at all.
+    """
+    if field is not None:
+        if field < 1:
+            raise ValueError("field must be 1 or greater.")
+        values: List[float] = []
+        for chunk in chunks:
+            for raw_line in chunk.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if delimiter is not None:
+                    parts = line.split(delimiter)
+                else:
+                    parts = [p for p in _SEPARATOR.split(line) if p]
+                if len(parts) < field:
+                    raise ValueError(f"line has fewer than {field} columns: '{raw_line.strip()}'.")
+                token = parts[field - 1].strip()
+                if not token:
+                    raise ValueError(f"field {field} is empty in line: '{raw_line.strip()}'.")
+                try:
+                    value = float(token)
+                except ValueError:
+                    raise ValueError(f"'{token}' is not a number.") from None
+                if not math.isfinite(value):
+                    raise ValueError(f"'{token}' is not a finite number.")
+                values.append(value)
+        if not values:
+            raise ValueError("no numbers were provided.")
+        return values
+
+    if delimiter is not None:
+        if not delimiter:
+            raise ValueError("delimiter cannot be empty.")
+        values = []
+        for chunk in chunks:
+            for token in chunk.split(delimiter):
+                token = token.strip()
+                if not token:
+                    continue
+                try:
+                    value = float(token)
+                except ValueError:
+                    raise ValueError(f"'{token}' is not a number.") from None
+                if not math.isfinite(value):
+                    raise ValueError(f"'{token}' is not a finite number.")
+                values.append(value)
+        if not values:
+            raise ValueError("no numbers were provided.")
+        return values
+
+    values = []
     for chunk in chunks:
         for token in _SEPARATOR.split(chunk.strip()):
             if not token:
@@ -78,12 +151,14 @@ def percentile(values: List[float], fraction: float) -> float:
     return sorted(values)[rank - 1]
 
 
-def summarize(values: List[float]) -> Summary:
+def summarize(values: List[float],
+              percentiles: Optional[Sequence[float]] = None) -> Summary:
     """
     The summary of a non-empty finite series.
 
     The median averages the middle pair for an even count, p90 is nearest-rank and the standard
-    deviation is the population form (dividing by n), as ADR-002 records.
+    deviation is the population form (dividing by n), as ADR-002 records. When percentiles are
+    given, custom_percentiles holds their values (ADR-006).
     """
     if not values:
         raise ValueError("cannot summarize an empty series.")
@@ -111,6 +186,14 @@ def summarize(values: List[float]) -> Summary:
         normalized_mean = math.fsum(value / scale for value in values) / count
         variance = math.fsum((value / scale - normalized_mean) ** 2 for value in values) / count
         stdev = min(scale, math.sqrt(variance) * scale)
+    custom: Optional[Dict[str, float]] = None
+    if percentiles is not None:
+        custom = {}
+        for p in sorted(percentiles):
+            if not 0.0 < p <= 100.0:
+                raise ValueError(f"percentile must be in (0, 100], got {p}.")
+            key = str(int(p)) if p.is_integer() else f"{p:g}"
+            custom[key] = percentile(values, p / 100.0)
     return Summary(
         count=count,
         total=total,
@@ -120,6 +203,7 @@ def summarize(values: List[float]) -> Summary:
         median=median,
         p90=percentile(values, 0.9),
         stdev=stdev,
+        custom_percentiles=custom,
     )
 
 
@@ -149,3 +233,30 @@ def build_histogram(values: List[float], bins: int) -> Histogram:
         index = bisect_right(edges, value) - 1
         counts[min(bins - 1, max(0, index))] += 1
     return Histogram(edges=edges, counts=tuple(counts))
+
+
+def build_boxplot(values: List[float]) -> BoxPlot:
+    """
+    Compute the 5-number summary for a box plot (ADR-007).
+    """
+    if not values:
+        raise ValueError("cannot build a box plot of an empty series.")
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("cannot build a box plot of a series with a non-finite value.")
+    ordered = sorted(values)
+    count = len(values)
+    minimum = ordered[0]
+    maximum = ordered[-1]
+    q1 = percentile(values, 0.25)
+    if count % 2:
+        median = ordered[count // 2]
+    else:
+        median = ordered[count // 2 - 1] / 2.0 + ordered[count // 2] / 2.0
+    q3 = percentile(values, 0.75)
+    return BoxPlot(
+        minimum=minimum,
+        q1=q1,
+        median=median,
+        q3=q3,
+        maximum=maximum,
+    )

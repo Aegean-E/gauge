@@ -167,6 +167,26 @@ def golden_path(box: Path, report: Report) -> None:
                 and "#" in out,
                 "hist bins the series into aligned rows", f"exit {code}, {len(lines)} rows")
 
+    code, out, _ = run_cli(box, "box", "1", "2", "3", "4", "5", "--width", "20", "--ascii")
+    report.step(code == 0 and "[" in out and "]" in out and "med:" in out,
+                "box renders horizontal ruler and 5-number summary", f"exit {code}")
+
+    code, out, _ = run_cli(box, "stats", "-f", "2", "-d", ",", "--json",
+                           stdin_text="a,10,x\nb,20,y\nc,30,z\n")
+    try:
+        ok = code == 0 and json.loads(out)["mean"] == 20.0
+    except (ValueError, KeyError):
+        ok = False
+    report.step(ok, "field and delimiter extraction parses delimited table", f"exit {code}")
+
+    code, out, _ = run_cli(box, "stats", "10", "20", "30", "--percentiles", "50,90", "--json")
+    try:
+        data = json.loads(out)
+        ok = code == 0 and "percentiles" in data and data["percentiles"]["50"] == 20.0
+    except (ValueError, KeyError):
+        ok = False
+    report.step(ok, "extended percentiles are reported in json", f"exit {code}")
+
     code, out, _ = run_cli(box, "spark", "--width", "20",
                            stdin_text=" ".join(str(n) for n in range(100)))
     report.step(code == 0 and len(out.strip()) == 20,
@@ -205,6 +225,22 @@ def chaos(box: Path, report: Report) -> None:
     code, _, err = run_cli(box, "hist", "1", "2", "--bins", "0")
     report.step(code == 2 and "--bins" in err,
                 "an impossible bin count is refused", f"exit {code}")
+
+    code, _, err = run_cli(box, "box", "1", "2", "--width", "3")
+    report.step(code == 2 and "--width" in err,
+                "a narrow box width is refused", f"exit {code}")
+
+    code, _, err = run_cli(box, "stats", "-f", "0", "1", "2")
+    report.step(code == 2 and "--field" in err,
+                "an impossible field index is refused", f"exit {code}")
+
+    code, _, err = run_cli(box, "stats", "-d", "", "1", "2")
+    report.step(code == 2 and "--delimiter" in err,
+                "an empty delimiter is refused", f"exit {code}")
+
+    code, _, err = run_cli(box, "stats", "--percentiles", "0,50", "1", "2")
+    report.step(code == 2 and "percentile" in err,
+                "an out-of-range percentile is refused", f"exit {code}")
 
     code, _, err = run_cli(box, "stats", "--file", str(box / "missing.txt"))
     report.step(code == 1 and "cannot read" in err and "Fix:" in err,

@@ -1,12 +1,12 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "gauge-hist-v1",
+    "task_id": "gauge-capabilities-v1",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792830931.6770453,
-    "completed_at": 1792830978.4543078
+    "updated_at": 1792858311.2493427,
+    "completed_at": 1792858316.869761
   },
   "checkpoints": [
     {
@@ -177,6 +177,76 @@
       "status": "completed",
       "timestamp": 1792830978.4543114,
       "timestamp_str": "2026-10-24 11:36:18"
+    },
+    {
+      "task_id": "gauge-capabilities-v1",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/4] Plan: add field/delimiter extraction (-f/-d), extended percentiles in stats, and horizontal box plot (gauge box)",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792833161.6101658,
+      "timestamp_str": "2026-10-24 12:12:41",
+      "impact_assessment": {
+        "why": "Enable users to parse multi-column logs/CSVs directly with -f/-d, view arbitrary quantiles in stats, and visualize 5-number distributions via a horizontal box plot without extra dependencies.",
+        "benefits": "Direct integration into tabular/log pipelines; flexible percentile inspection; compact visual summary of spread and skew; 100% backward-compatible text and JSON contracts.",
+        "risks": "contract: -f, -d, --percentiles, and box subcommand become public interfaces; JSON key additions must not alter existing keys; concurrency: none; dependency: none; state: none.",
+        "mitigation": "Freeze contracts in ADR-005, ADR-006, ADR-007; test edge cases, out-of-bounds fields, invalid delimiters, and flat series; add golden tests and dogfood chaos tests."
+      }
+    },
+    {
+      "task_id": "gauge-capabilities-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[2/4] Field and delimiter extraction: parse_numbers -f/-d, CLI options, ADR-005, and unit tests",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792833330.2910552,
+      "timestamp_str": "2026-10-24 12:15:30"
+    },
+    {
+      "task_id": "gauge-capabilities-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[3/4] Extended percentiles in stats: --percentiles flag, table/JSON integration, ADR-006, and unit tests",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792833512.316704,
+      "timestamp_str": "2026-10-24 12:18:32"
+    },
+    {
+      "task_id": "gauge-capabilities-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[3/4] Horizontal box plot: gauge box subcommand, 5-number summary, ASCII twin, ADR-007, and tests",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792858147.4630566,
+      "timestamp_str": "2026-10-24 19:09:07"
+    },
+    {
+      "task_id": "gauge-capabilities-v1",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[4/4] README, ADR-005..007, 28-step dogfood gate and codebase map are in place; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792858311.2493427,
+      "timestamp_str": "2026-10-24 19:11:51",
+      "handoff": {
+        "state": "97 tests and 28 dogfood steps pass",
+        "next": "commit the capabilities and push to origin",
+        "evidence": "aikit check gauge 5/5"
+      }
+    },
+    {
+      "task_id": "gauge-capabilities-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'gauge-capabilities-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792858316.869763,
+      "timestamp_str": "2026-10-24 19:11:56"
     }
   ]
 }

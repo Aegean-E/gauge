@@ -1,8 +1,8 @@
 # gauge
 
 A zero-dependency terminal ruler for numeric series. `gauge` reads numbers from arguments, a
-file or a pipe and draws a sparkline, signed bars, a histogram or a compact statistics block.
-`stats --json` is the machine surface for another tool.
+file or a pipe and draws a sparkline, signed bars, a histogram, a box plot or a compact
+statistics block. `stats --json` is the machine surface for another tool.
 
 It is deliberately small: one short-lived process, no configuration, no network access and no
 stored state.
@@ -32,7 +32,8 @@ python -m gauge demo
 python -m gauge spark 0 1 2 3 4 5 6 7 --label latency
 python -m gauge bars 2 4 8 --width 20
 python -m gauge hist 1 2 2 3 3 3 --bins 3 --width 12
-python -m gauge stats 2 3 5 8
+python -m gauge box 0 25 50 75 100 --width 21
+python -m gauge stats 2 3 5 8 --percentiles 50,90,95,99
 python -c "print('2, 3, 5, 8')" | python -m gauge stats --json
 python -m gauge bars --file latencies.txt --width 30
 ```
@@ -75,6 +76,14 @@ $ python -m gauge hist 1 2 2 3 3 3 --bins 3 --width 12 --ascii
       [2.33333, 3]  ############  3
 ```
 
+A horizontal 5-number box plot:
+
+```text
+$ python -m gauge box 0 25 50 75 100 --width 21 --ascii
+|----[====|====]----|
+min: 0  q1: 25  med: 50  q3: 75  max: 100
+```
+
 ## 🧭 Commands
 
 | Command | What it prints |
@@ -82,6 +91,7 @@ $ python -m gauge hist 1 2 2 3 3 3 --bins 3 --width 12 --ascii
 | `spark` | One character per value, resampled to `--width` (default 60) |
 | `bars` | One labelled row per value around a shared zero axis (default width 40) |
 | `hist` | One row per equal-width bin with a scaled bar and its count (default width 40) |
+| `box` | Horizontal 5-number box plot with whiskers, quartiles and median (default width 40) |
 | `stats` | Count, sum, min, max, mean, median, p90 and stdev; `--json` for machines |
 | `demo` | A deterministic 24-point trace, useful as a smoke test |
 
@@ -92,9 +102,12 @@ Every reading command accepts the same source arguments:
 | `NUMBER ...` | Numbers as positional arguments, separated by whitespace or commas |
 | `--file PATH` | Read numbers from a UTF-8 file instead |
 | standard input | Read numbers from a pipe when neither of the above is given |
-| `--width N` | Chart width in cells, 2 to 1000 (spark default 60, bars and hist default 40) |
+| `-f N, --field N` | Extract the N-th column from lines (1-indexed) |
+| `-d CHAR, --delimiter CHAR` | Column delimiter (default: whitespace and commas) |
+| `--width N` | Chart width in cells (spark default 60; bars, hist and box default 40) |
 | `--bins N` | Number of equal-width histogram bins, 1 to 100 (hist default 10) |
-| `--ascii` | Force the ASCII twin of the Unicode blocks |
+| `--percentiles LIST` | Comma-separated percentiles to report (`stats` only) |
+| `--ascii` | Force the ASCII twin of the Unicode blocks or box glyphs |
 | `--label TEXT` | Prefix a sparkline with a label |
 | `--json` | Print the summary object instead of the table (`stats` only) |
 
@@ -136,6 +149,12 @@ float is refused with the error triad instead of printed as infinity.
 closed, `[low, high]`; a value on an inner edge belongs to the upper bin, and the maximum belongs
 to the last bin. A flat series is one bin labelled with its value. Every bin is printed, including
 empty ones, and the bars scale to the largest count. ADR-004 records the rule.
+
+## 📦 Box Plots
+
+`box` computes the 5-number summary (min, Q1, median, Q3, max) and draws a horizontal box plot
+across `--width` cells (default 40, minimum 5) using Unicode `├─[═│═]─┤` and ASCII `|-[=|=]-|`,
+followed by an aligned summary line. A flat series renders as `[value]`. ADR-007 records the rule.
 
 ## 🎨 Rendering
 
@@ -191,12 +210,12 @@ so they never depend on an installed copy.
 
 ## 🧪 Testing and Dogfooding
 
-- `python -m unittest discover -s tests -t .` runs 71 fast unit and command-line tests.
-- `python tools/dogfood.py` uses the product as a user would, including a histogram, then
-  attacks empty input, bad tokens, non-finite values, impossible widths and bin counts,
-  conflicting sources, a missing file, an unknown flag and a legacy output encoding. It runs
-  every child in a temporary sandbox, kills the whole process tree on the way out, and verifies
-  that the project tree is unchanged.
+- `python -m unittest discover -s tests -t .` runs 97 fast unit and command-line tests.
+- `python tools/dogfood.py` uses the product as a user would, including histograms, box plots,
+  column extraction and percentiles, then attacks empty input, bad tokens, non-finite values,
+  impossible widths, field indices and bin counts, conflicting sources, a missing file, an unknown
+  flag and a legacy output encoding. It runs every child in a temporary sandbox, kills the whole
+  process tree on the way out, and verifies that the project tree is unchanged.
 
 The Phase 4 cockpit command runs the tests, the dogfood gate, the hygiene scan, the guidelines
 and map check, and the secret scan:
@@ -211,6 +230,9 @@ python aikit.py check gauge
 - [ADR-002](.aikit/decisions.md): population spread, nearest-rank p90, averaged even median.
 - [ADR-003](.aikit/decisions.md): deterministic eight-level rendering with an ASCII twin.
 - [ADR-004](.aikit/decisions.md): equal-width histogram bins with a closed maximum.
+- [ADR-005](.aikit/decisions.md): field and delimiter extraction for structured input.
+- [ADR-006](.aikit/decisions.md): extended percentiles on summary statistics.
+- [ADR-007](.aikit/decisions.md): horizontal 5-number box plot with deterministic glyphs and ASCII twin.
 
 ### Deliberate limits
 

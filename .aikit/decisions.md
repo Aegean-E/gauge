@@ -40,3 +40,27 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Decision**: `hist` splits `[min, max]` into `--bins` equal-width bins (default 10, 1 to 100). A bin is right-open, `[low, high)`, except the last, which is closed, `[low, high]`; a value on an inner edge belongs to the upper bin, and the maximum is clamped into the last bin. A flat series is one bin labelled `[value]`. Every bin is printed, including empty ones; bar length is the count divided by the largest count, rounded half-up, with at least one cell for a non-zero count. Edges are weighted interpolations, `low * (1 - t) + high * t`, so a span near the float limit cannot overflow. Histogram bars use the same Unicode block and ASCII twin as the other surfaces.
 - **Consequences**: Bins are deterministic and explainable, and the renderer has a golden contract. Printing every bin makes the output as tall as `--bins`, and very close edges can share the same six-significant-digit label; choosing fewer bins avoids that. This adds a fifth subcommand but leaves ADR-001's stateless-filter architecture unchanged.
 
+### ADR-005: Field and delimiter extraction for structured input
+- **Date**: 2026-10-24
+- **Status**: Accepted
+- **Context**: Tabular files, CSVs, TSVs and application logs contain numeric metrics embedded in specific columns alongside timestamps and labels. Users previously had to pipe through cut, awk, or jq before feeding gauge.
+- **Decision**: Add `-f, --field N` (1-indexed, >= 1) and `-d, --delimiter CHAR` to all input-reading commands (spark, bars, hist, stats). When `--field` is specified, each non-empty line is split by `--delimiter` (or whitespace/comma if no delimiter is passed), and the N-th column is parsed as a finite float. A line with fewer than N columns raises an error with the Why/Fix triad. An empty delimiter or `--field < 1` is refused as a CLI usage error (exit 2).
+- **Consequences**: gauge directly processes CSVs, TSVs, and delimited logs without external tools. The default behavior when -f and -d are omitted is completely unchanged.
+
+### ADR-006: Extended percentiles on summary statistics
+- **Date**: 2026-10-24
+- **Status**: Accepted
+- **Context**: Monitoring SLAs and tail latencies requires specific percentiles such as p50, p95, and p99. Previously, stats only output p90. G-001 binds both the text table and the stats --json key set as contracts requiring an ADR and golden tests.
+- **Decision**: Add `--percentiles` to `stats`, taking a comma- or whitespace-separated list of numbers in (0, 100]. In text mode, the requested percentiles replace the single p90 row in ascending order. In JSON mode, all existing keys (count, sum, min, max, mean, median, p90, stdev) remain fixed, and a `"percentiles"` mapping is added when requested. Percentiles outside (0, 100] are refused with exit 2 and the Why/Fix triad.
+- **Consequences**: Existing consumers and automated parsers remain 100% compatible. Callers can inspect arbitrary percentiles on demand.
+
+### ADR-007: Horizontal 5-number box plot with deterministic glyphs and ASCII twin
+- **Date**: 2026-10-24
+- **Status**: Accepted
+- **Context**: A box plot provides an instant visualization of the 5-number summary (min, Q1, median, Q3, max), revealing central tendency, interquartile spread, and skewness in a single compact graphic.
+- **Decision**: Add `box` subcommand. `build_boxplot` computes the 5-number summary using nearest-rank percentiles for Q1 (0.25) and Q3 (0.75) and the averaged even median. `render_box` renders a horizontal ruler across `--width` cells (default 40, minimum 5) using Unicode `├─[═│═]─┤` and ASCII `|-[=|=]-|`, followed by a line listing the 5 numbers. A flat series renders as `[value]`.
+- **Consequences**: Adds a sixth subcommand without changing any existing contract. Golden tests pin the rendering across widths and flat series.
+
+
+
+

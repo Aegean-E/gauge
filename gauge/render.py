@@ -3,7 +3,7 @@
 import math
 from typing import List, Sequence
 
-from gauge.series import Histogram, Summary
+from gauge.series import BoxPlot, Histogram, Summary
 
 UNICODE_LEVELS = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
 ASCII_LEVELS = "_.-=+*#@"
@@ -119,16 +119,21 @@ def bar_chart(values: Sequence[float], width: int, ascii_only: bool = False) -> 
 
 def stats_table(summary: Summary) -> str:
     """The human statistics block, one aligned `name  value` line per measurement."""
-    rows = (
+    rows = [
         ("count", str(summary.count)),
         ("sum", format_number(summary.total)),
         ("min", format_number(summary.minimum)),
         ("max", format_number(summary.maximum)),
         ("mean", format_number(summary.mean)),
         ("median", format_number(summary.median)),
-        ("p90", format_number(summary.p90)),
-        ("stdev", format_number(summary.stdev)),
-    )
+    ]
+    if summary.custom_percentiles is not None:
+        for key, val in summary.custom_percentiles.items():
+            label = key if key.startswith("p") else f"p{key}"
+            rows.append((label, format_number(val)))
+    else:
+        rows.append(("p90", format_number(summary.p90)))
+    rows.append(("stdev", format_number(summary.stdev)))
     label_width = max(len(label) for label, _ in rows)
     return "\n".join(f"{label:<{label_width}}  {text}" for label, text in rows)
 
@@ -162,3 +167,58 @@ def render_histogram(histogram: Histogram, width: int, ascii_only: bool = False)
         bar = block * length + " " * (width - length)
         rows.append(f"{label:>{label_width}}  {bar}  {count:>{count_width}}")
     return "\n".join(rows)
+
+
+def render_box(boxplot: BoxPlot, width: int = 40, ascii_only: bool = False) -> str:
+    """Render a horizontal 5-number box plot and its summary row (ADR-007)."""
+    if width < 5:
+        raise ValueError("render_box needs a width of at least 5.")
+    if boxplot.minimum == boxplot.maximum:
+        ruler = f"[{format_number(boxplot.minimum)}]"
+        summary_line = f"min: {format_number(boxplot.minimum)}  max: {format_number(boxplot.maximum)}"
+        return f"{ruler}\n{summary_line}"
+
+    whisker_left = "|" if ascii_only else "\u251c"   # ├
+    whisker_right = "|" if ascii_only else "\u2524"  # ┤
+    whisker_line = "-" if ascii_only else "\u2500"   # ─
+    box_left = "["
+    box_right = "]"
+    box_fill = "=" if ascii_only else "\u2550"       # ═
+    median_char = "|" if ascii_only else "\u2502"    # │
+
+    low = boxplot.minimum
+    high = boxplot.maximum
+
+    pos_min = _position(low, low, high, width)
+    pos_q1 = _position(boxplot.q1, low, high, width)
+    pos_med = _position(boxplot.median, low, high, width)
+    pos_q3 = _position(boxplot.q3, low, high, width)
+    pos_max = _position(high, low, high, width)
+
+    cells = [" "] * width
+
+    # Whiskers
+    for idx in range(pos_min, pos_q1):
+        cells[idx] = whisker_line
+    for idx in range(pos_q3 + 1, pos_max + 1):
+        cells[idx] = whisker_line
+    cells[pos_min] = whisker_left
+    cells[pos_max] = whisker_right
+
+    # Box body
+    for idx in range(pos_q1, pos_q3 + 1):
+        cells[idx] = box_fill
+
+    cells[pos_q1] = box_left
+    cells[pos_q3] = box_right
+    cells[pos_med] = median_char
+
+    ruler = "".join(cells)
+    summary_line = (
+        f"min: {format_number(boxplot.minimum)}  "
+        f"q1: {format_number(boxplot.q1)}  "
+        f"med: {format_number(boxplot.median)}  "
+        f"q3: {format_number(boxplot.q3)}  "
+        f"max: {format_number(boxplot.maximum)}"
+    )
+    return f"{ruler}\n{summary_line}"

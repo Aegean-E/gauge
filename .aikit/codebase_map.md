@@ -7,10 +7,10 @@
 
 ## 📊 Codebase Metrics
 - **Total Python Modules**: `10`
-- **Total Classes**: `15`
-- **Total Top-Level Functions**: `37`
-- **Total Class Methods**: `79`
-- **Total Source Lines**: `1344`
+- **Total Classes**: `19`
+- **Total Top-Level Functions**: `43`
+- **Total Class Methods**: `105`
+- **Total Source Lines**: `1836`
 
 ---
 
@@ -33,23 +33,27 @@
 ### [`gauge/cli.py`](gauge/cli.py)
 > *The gauge command line: read one numeric source, then render or summarize it.*
 
-**Size**: `255` lines (`9760` bytes)
+**Size**: `348` lines (`14034` bytes)
 
 **Classes:**
 - `class InputError` - *A request gauge cannot carry out, carrying the Why/Fix remediation triad.*
   - Method `.__init__(message, why, fix, exit_code)`
 
 **Functions:**
-- `def _parse_or_raise(chunks)` - *Parse chunks, translating a series error into the command-line triad.*
-- `def _read_file(path_text)` - *Numbers from one UTF-8 file, with a read failure reported as a runtime error.*
+- `def _checked_field(field)` - *The requested field index, bounded to positive integers.*
+- `def _checked_delimiter(delimiter)` - *The requested delimiter, which cannot be empty.*
+- `def _parse_or_raise(chunks, field, delimiter)` - *Parse chunks, translating a series error into the command-line triad.*
+- `def _read_file(path_text, field, delimiter)` - *Numbers from one UTF-8 file, with a read failure reported as a runtime error.*
 - `def _read_values(args)` - *The series from arguments, `--file` or standard input, in that order of precedence.*
 - `def _checked_width(width, default)` - *The requested chart width, bounded so every row stays renderable.*
 - `def _checked_bins(bins)` - *The requested bin count, bounded so every row stays readable.*
+- `def _checked_percentiles(raw)` - *Parse and validate comma- or whitespace-separated percentiles in (0, 100].*
 - `def _stdout_supports_unicode()` - *Whether the output encoding can carry the block character, so a legacy pipe still works.*
 - `def _use_ascii(forced)` - *`--ascii`, or automatically when the output encoding cannot represent the blocks.*
 - `def _spark(args)` - *Print one sparkline, optionally labelled.*
 - `def _bars(args)` - *Print one labelled row per value with a signed zero axis.*
 - `def _hist(args)` - *Print one row per equal-width bin, with the last bin closed.*
+- `def _box(args)` - *Print a horizontal 5-number box plot and its summary row.*
 - `def _stats(args)` - *Print the summary table, or its stable JSON object.*
 - `def _demo(args)` - *A deterministic 24-point trace that shows both surfaces without any input.*
 - `def _add_input_options(parser)` - *The source arguments every reading subcommand shares.*
@@ -62,7 +66,7 @@
 ### [`gauge/render.py`](gauge/render.py)
 > *Text renderers: sparklines, signed bar charts and a statistics table.*
 
-**Size**: `164` lines (`6386` bytes)
+**Size**: `224` lines (`8569` bytes)
 
 **Functions:**
 - `def format_number(value)` - *A compact human label for one value, with negative zero folded to zero.*
@@ -75,24 +79,27 @@
 - `def bar_chart(values, width, ascii_only)` - *One labelled row per value, bars growing from a shared zero axis.*
 - `def stats_table(summary)` - *The human statistics block, one aligned `name  value` line per measurement.*
 - `def render_histogram(histogram, width, ascii_only)` - *One row per bin: a right-open range label, a scaled bar and the count.*
+- `def render_box(boxplot, width, ascii_only)` - *Render a horizontal 5-number box plot and its summary row (ADR-007).*
 
 ---
 
 ### [`gauge/series.py`](gauge/series.py)
 > *Numeric input parsing, summary statistics and histogram binning for gauge.*
 
-**Size**: `151` lines (`5175` bytes)
+**Size**: `262` lines (`9328` bytes)
 
 **Classes:**
 - `class Summary` - *A series' count, extrema, centre and spread, with a stable JSON shape.*
   - Method `.as_dict()` - *The `stats --json` object: stable keys and raw floating-point values.*
 - `class Histogram` - *Equal-width bins: `edges` holds one more boundary than `counts` holds counts.*
+- `class BoxPlot` - *The 5-number summary: minimum, lower quartile, median, upper quartile, maximum.*
 
 **Functions:**
-- `def parse_numbers(chunks)` - *Every finite number in whitespace- and comma-separated text chunks, in order.*
+- `def parse_numbers(chunks, field, delimiter)` - *Every finite number in text chunks, in order.*
 - `def percentile(values, fraction)` - *The nearest-rank percentile: the ceil(fraction * n)-th smallest value.*
-- `def summarize(values)` - *The summary of a non-empty finite series.*
+- `def summarize(values, percentiles)` - *The summary of a non-empty finite series.*
 - `def build_histogram(values, bins)` - *Equal-width bins over [min, max], right-open except the last, which is closed.*
+- `def build_boxplot(values)` - *Compute the 5-number summary for a box plot (ADR-007).*
 
 ---
 
@@ -106,7 +113,7 @@
 ### [`tests/test_cli.py`](tests/test_cli.py)
 > *Unit tests for the gauge command line: sources, surfaces, refusals and exit codes.*
 
-**Size**: `190` lines (`7793` bytes)
+**Size**: `269` lines (`11159` bytes)
 
 **Classes:**
 - `class _FakeStdin` - *A non-interactive or interactive standard input with fixed text.*
@@ -137,13 +144,23 @@
   - Method `.test_demo_shows_both_surfaces()`
   - Method `.test_a_legacy_encoding_falls_back_to_ascii()`
   - Method `.test_version_prints_the_package_version()`
+  - Method `.test_field_and_delimiter_extract_numbers_from_csv()`
+  - Method `.test_field_out_of_bounds_refused_with_triad()`
+  - Method `.test_invalid_field_refused()`
+  - Method `.test_empty_delimiter_refused()`
+  - Method `.test_stats_with_custom_percentiles_table()`
+  - Method `.test_stats_with_custom_percentiles_json()`
+  - Method `.test_invalid_percentiles_refused_with_triad()`
+  - Method `.test_box_renders_ascii_and_unicode()`
+  - Method `.test_box_flat_series()`
+  - Method `.test_box_narrow_width_refused()`
 
 ---
 
 ### [`tests/test_render.py`](tests/test_render.py)
 > *Unit tests for gauge's deterministic text renderers.*
 
-**Size**: `149` lines (`5335` bytes)
+**Size**: `188` lines (`7080` bytes)
 
 **Classes:**
 - `class SparklineTests` - *Eight fixed levels, a flat middle and proportional resampling.*
@@ -167,19 +184,25 @@
 - `class StatsTableTests` - *The five-line table is a stable, aligned surface.*
   - Method `.test_the_table_matches_the_documented_example()`
   - Method `.test_numbers_stay_compact_and_negative_zero_folds()`
+  - Method `.test_table_shows_custom_percentiles_aligned()`
 - `class HistogramRenderTests` - *Bars scale to the largest count and every bin keeps a row.*
   - Method `.test_bars_scale_to_the_largest_count()`
   - Method `.test_a_flat_series_uses_one_compact_label()`
   - Method `.test_empty_bins_stay_visible()`
   - Method `.test_the_unicode_block_is_the_default()`
   - Method `.test_a_narrow_width_is_refused()`
+- `class BoxPlotRenderTests` - *The box plot renders whiskers, quartiles, median and extrema (ADR-007).*
+  - Method `.test_render_box_ascii()`
+  - Method `.test_render_box_unicode()`
+  - Method `.test_render_box_flat_series()`
+  - Method `.test_narrow_width_refused()`
 
 ---
 
 ### [`tests/test_series.py`](tests/test_series.py)
 > *Unit tests for gauge's input parsing and summary statistics.*
 
-**Size**: `156` lines (`6454` bytes)
+**Size**: `230` lines (`9745` bytes)
 
 **Classes:**
 - `class ParseNumbersTests` - *One strict reader for positional arguments, files and pipes.*
@@ -203,6 +226,8 @@
   - Method `.test_even_median_of_extreme_values_does_not_overflow()`
   - Method `.test_an_unrepresentable_sum_is_refused()`
   - Method `.test_json_object_has_the_documented_keys()`
+  - Method `.test_custom_percentiles_computed_and_included_in_dict()`
+  - Method `.test_invalid_custom_percentiles_refused()`
   - Method `.test_an_empty_or_non_finite_series_is_refused()`
 - `class HistogramTests` - *The equal-width bin contract recorded in ADR-004.*
   - Method `.test_ten_values_split_evenly_across_five_bins()`
@@ -213,13 +238,24 @@
   - Method `.test_extreme_opposite_signs_do_not_overflow()`
   - Method `.test_bin_counts_outside_the_bounds_are_refused()`
   - Method `.test_an_empty_or_non_finite_series_is_refused()`
+- `class FieldAndDelimiterTests` - *Field and delimiter extraction rules (ADR-005).*
+  - Method `.test_field_extracts_column_from_lines()`
+  - Method `.test_delimiter_splits_custom_separator()`
+  - Method `.test_field_with_custom_delimiter_csv()`
+  - Method `.test_field_out_of_bounds_raises()`
+  - Method `.test_invalid_field_raises()`
+  - Method `.test_empty_delimiter_raises()`
+- `class BoxPlotTests` - *The 5-number summary computation (ADR-007).*
+  - Method `.test_boxplot_computes_five_number_summary()`
+  - Method `.test_boxplot_flat_series()`
+  - Method `.test_boxplot_empty_or_non_finite_raises()`
 
 ---
 
 ### [`tools/dogfood.py`](tools/dogfood.py)
 > *Gauge's dogfood runner: use the product as a user does, then attack its input edge.*
 
-**Size**: `267` lines (`11053` bytes)
+**Size**: `303` lines (`12761` bytes)
 
 **Classes:**
 - `class Report` - *Collects step outcomes: the console sees a summary, the log sees everything.*

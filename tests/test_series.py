@@ -3,7 +3,7 @@
 import math
 import unittest
 
-from gauge.series import build_histogram, parse_numbers, percentile, summarize
+from gauge.series import build_boxplot, build_histogram, parse_numbers, percentile, summarize
 
 
 class ParseNumbersTests(unittest.TestCase):
@@ -99,6 +99,24 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(18.0, data["sum"])
         self.assertEqual(4.0, data["median"])
 
+    def test_custom_percentiles_computed_and_included_in_dict(self) -> None:
+        vals = [float(n) for n in range(1, 101)]
+        summary = summarize(vals, percentiles=[50.0, 95.0, 99.0])
+        self.assertIsNotNone(summary.custom_percentiles)
+        self.assertEqual({"50": 50.0, "95": 95.0, "99": 99.0}, summary.custom_percentiles)
+        data = summary.as_dict()
+        self.assertIn("percentiles", data)
+        self.assertEqual({"50": 50.0, "95": 95.0, "99": 99.0}, data["percentiles"])
+        # Existing 8 keys still present
+        for key in ("count", "sum", "min", "max", "mean", "median", "p90", "stdev"):
+            self.assertIn(key, data)
+
+    def test_invalid_custom_percentiles_refused(self) -> None:
+        with self.assertRaisesRegex(ValueError, "in \\(0, 100\\]"):
+            summarize([1.0, 2.0], percentiles=[0.0])
+        with self.assertRaisesRegex(ValueError, "in \\(0, 100\\]"):
+            summarize([1.0, 2.0], percentiles=[105.0])
+
     def test_an_empty_or_non_finite_series_is_refused(self) -> None:
         with self.assertRaises(ValueError):
             summarize([])
@@ -150,6 +168,62 @@ class HistogramTests(unittest.TestCase):
             build_histogram([], 10)
         with self.assertRaisesRegex(ValueError, "non-finite"):
             build_histogram([1.0, float("inf")], 10)
+
+
+class FieldAndDelimiterTests(unittest.TestCase):
+    """Field and delimiter extraction rules (ADR-005)."""
+
+    def test_field_extracts_column_from_lines(self) -> None:
+        lines = ["host1 42 active\n", "host2 99 idle\n", "host3 15 active\n"]
+        self.assertEqual([42.0, 99.0, 15.0], parse_numbers(lines, field=2))
+
+    def test_delimiter_splits_custom_separator(self) -> None:
+        text = ["10|20|30"]
+        self.assertEqual([10.0, 20.0, 30.0], parse_numbers(text, delimiter="|"))
+
+    def test_field_with_custom_delimiter_csv(self) -> None:
+        csv_data = ["2026-10-24,GET,/api,200,45.5\n", "2026-10-24,POST,/login,200,120.2\n"]
+        self.assertEqual([45.5, 120.2], parse_numbers(csv_data, field=5, delimiter=","))
+
+    def test_field_out_of_bounds_raises(self) -> None:
+        lines = ["only_one_col\n"]
+        with self.assertRaisesRegex(ValueError, "fewer than 2 columns"):
+            parse_numbers(lines, field=2)
+
+    def test_invalid_field_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "must be 1 or greater"):
+            parse_numbers(["10 20"], field=0)
+
+    def test_empty_delimiter_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "cannot be empty"):
+            parse_numbers(["10 20"], delimiter="")
+
+
+class BoxPlotTests(unittest.TestCase):
+    """The 5-number summary computation (ADR-007)."""
+
+    def test_boxplot_computes_five_number_summary(self) -> None:
+        vals = [float(n) for n in range(1, 101)]
+        box = build_boxplot(vals)
+        self.assertEqual(1.0, box.minimum)
+        self.assertEqual(25.0, box.q1)
+        self.assertEqual(50.5, box.median)
+        self.assertEqual(75.0, box.q3)
+        self.assertEqual(100.0, box.maximum)
+
+    def test_boxplot_flat_series(self) -> None:
+        box = build_boxplot([5.0, 5.0, 5.0])
+        self.assertEqual(5.0, box.minimum)
+        self.assertEqual(5.0, box.q1)
+        self.assertEqual(5.0, box.median)
+        self.assertEqual(5.0, box.q3)
+        self.assertEqual(5.0, box.maximum)
+
+    def test_boxplot_empty_or_non_finite_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "empty series"):
+            build_boxplot([])
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            build_boxplot([1.0, float("nan")])
 
 
 if __name__ == "__main__":

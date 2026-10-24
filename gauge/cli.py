@@ -3,6 +3,7 @@
 import argparse
 import json
 import math
+import re
 import sys
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -11,11 +12,12 @@ from gauge import __version__
 from gauge.render import (
     UNICODE_BLOCK,
     bar_chart,
+    render_box,
     render_histogram,
     sparkline,
     stats_table,
 )
-from gauge.series import build_histogram, parse_numbers, summarize
+from gauge.series import build_boxplot, build_histogram, parse_numbers, summarize
 
 
 class InputError(Exception):
@@ -28,25 +30,53 @@ class InputError(Exception):
         self.exit_code = exit_code
 
 
-def _parse_or_raise(chunks) -> List[float]:
+def _checked_field(field: Optional[int]) -> Optional[int]:
+    """The requested field index, bounded to positive integers."""
+    if field is None:
+        return None
+    if field < 1:
+        raise InputError(
+            f"--field must be 1 or greater, got {field}.",
+            "column indices are 1-based, like cut and awk.",
+            "choose a positive field index, for example -f 1 or --field 2.",
+        )
+    return field
+
+
+def _checked_delimiter(delimiter: Optional[str]) -> Optional[str]:
+    """The requested delimiter, which cannot be empty."""
+    if delimiter is None:
+        return None
+    if not delimiter:
+        raise InputError(
+            "--delimiter cannot be empty.",
+            "an empty delimiter cannot split input into columns.",
+            "provide a non-empty delimiter character, for example -d , or --delimiter ':'",
+        )
+    return delimiter
+
+
+def _parse_or_raise(chunks, field: Optional[int] = None,
+                    delimiter: Optional[str] = None) -> List[float]:
     """Parse chunks, translating a series error into the command-line triad."""
     try:
-        return parse_numbers(chunks)
+        return parse_numbers(chunks, field=field, delimiter=delimiter)
     except ValueError as exc:
         raise InputError(
             str(exc),
             "gauge only accepts finite decimal numbers, and skipping text silently would hide "
             "a bad input row.",
-            "remove or filter the offending token, then run the command again.",
+            "check that the input and field selection match numeric data, then run the command again.",
         ) from None
 
 
-def _read_file(path_text: str) -> List[float]:
+def _read_file(path_text: str, field: Optional[int] = None,
+               delimiter: Optional[str] = None) -> List[float]:
     """Numbers from one UTF-8 file, with a read failure reported as a runtime error."""
     path = Path(path_text)
     try:
         with open(path, "r", encoding="utf-8") as handle:
-            return _parse_or_raise(handle)
+            return _parse_or_raise(handle, field=field, delimiter=delimiter)
     except (OSError, UnicodeError) as exc:
         detail = getattr(exc, "strerror", None) or str(exc)
         raise InputError(
@@ -60,6 +90,8 @@ def _read_file(path_text: str) -> List[float]:
 
 def _read_values(args: argparse.Namespace) -> List[float]:
     """The series from arguments, `--file` or standard input, in that order of precedence."""
+    field = _checked_field(getattr(args, "field", None))
+    delimiter = _checked_delimiter(getattr(args, "delimiter", None))
     if args.values and args.file:
         raise InputError(
             "both positional numbers and --file were given.",
@@ -67,16 +99,16 @@ def _read_values(args: argparse.Namespace) -> List[float]:
             "keep the positional numbers or --file, not both.",
         )
     if args.values:
-        return _parse_or_raise(args.values)
+        return _parse_or_raise(args.values, field=field, delimiter=delimiter)
     if args.file:
-        return _read_file(args.file)
+        return _read_file(args.file, field=field, delimiter=delimiter)
     if sys.stdin is None or sys.stdin.isatty():
         raise InputError(
             "no numbers to read.",
             "an interactive terminal supplies no piped data, and gauge never prompts.",
             "pass numbers as arguments, use --file PATH, or pipe numbers on standard input.",
         )
-    return _parse_or_raise(sys.stdin)
+    return _parse_or_raise(sys.stdin, field=field, delimiter=delimiter)
 
 
 def _checked_width(width: Optional[int], default: int) -> int:
@@ -102,6 +134,37 @@ def _checked_bins(bins: Optional[int]) -> int:
             "choose a bin count from 1 to 100, for example --bins 10.",
         )
     return value
+
+
+def _checked_percentiles(raw: Optional[str]) -> Optional[List[float]]:
+    """Parse and validate comma- or whitespace-separated percentiles in (0, 100]."""
+    if raw is None:
+        return None
+    tokens = [t.strip() for t in re.split(r"[,\s]+", raw.strip()) if t.strip()]
+    if not tokens:
+        raise InputError(
+            "--percentiles cannot be empty.",
+            "at least one percentile value is required when the flag is given.",
+            "provide percentages between 0 and 100, for example --percentiles 50,90,95,99.",
+        )
+    percentiles: List[float] = []
+    for token in tokens:
+        try:
+            val = float(token)
+        except ValueError:
+            raise InputError(
+                f"'{token}' is not a valid percentile number.",
+                "percentiles must be numbers between 0 and 100.",
+                "provide numbers between 0 and 100, for example --percentiles 50,90,95,99.",
+            ) from None
+        if not 0.0 < val <= 100.0:
+            raise InputError(
+                f"percentile {token} must be between 0 and 100 (exclusive of 0).",
+                "percentiles outside (0, 100] are undefined.",
+                "choose values between 0 and 100, for example --percentiles 50,95,99.",
+            )
+        percentiles.append(val)
+    return percentiles
 
 
 def _stdout_supports_unicode() -> bool:
@@ -144,10 +207,26 @@ def _hist(args: argparse.Namespace) -> int:
     return 0
 
 
+def _box(args: argparse.Namespace) -> int:
+    """Print a horizontal 5-number box plot and its summary row."""
+    values = _read_values(args)
+    boxplot = build_boxplot(values)
+    width = _checked_width(args.width, 40)
+    if width < 5:
+        raise InputError(
+            f"--width must be between 5 and 1000 for box, got {width}.",
+            "a box plot needs at least five cells to display whiskers and box boundaries.",
+            "choose a width from 5 to 1000, for example --width 40.",
+        )
+    print(render_box(boxplot, width, _use_ascii(args.ascii)))
+    return 0
+
+
 def _stats(args: argparse.Namespace) -> int:
     """Print the summary table, or its stable JSON object."""
+    percentiles = _checked_percentiles(getattr(args, "percentiles", None))
     try:
-        summary = summarize(_read_values(args))
+        summary = summarize(_read_values(args), percentiles=percentiles)
     except ValueError as exc:
         raise InputError(
             str(exc),
@@ -181,6 +260,10 @@ def _add_input_options(parser: argparse.ArgumentParser) -> None:
                         help="numbers to read; omit to use --file or standard input")
     parser.add_argument("--file", metavar="PATH",
                         help="read numbers from PATH instead of arguments or standard input")
+    parser.add_argument("-f", "--field", type=int, default=None, metavar="N",
+                        help="extract the N-th column (1-indexed)")
+    parser.add_argument("-d", "--delimiter", default=None, metavar="CHAR",
+                        help="column delimiter (default: whitespace and commas)")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -192,7 +275,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=f"gauge {__version__}")
     commands = parser.add_subparsers(dest="command", required=True,
-                                     metavar="{spark,bars,hist,stats,demo}")
+                                     metavar="{spark,bars,hist,box,stats,demo}")
 
     spark = commands.add_parser("spark", help="draw a sparkline of the series")
     _add_input_options(spark)
@@ -219,9 +302,18 @@ def build_parser() -> argparse.ArgumentParser:
     hist.add_argument("--ascii", action="store_true",
                       help="use the ASCII twin instead of Unicode blocks")
 
+    box = commands.add_parser("box", help="draw a horizontal 5-number box plot")
+    _add_input_options(box)
+    box.add_argument("--width", type=int, default=None,
+                     help="chart width in cells, 5-1000 (default: 40)")
+    box.add_argument("--ascii", action="store_true",
+                     help="use the ASCII twin instead of Unicode glyphs")
+
     stats = commands.add_parser("stats", help="print count, extrema, mean, median, p90 and stdev")
     _add_input_options(stats)
     stats.add_argument("--json", action="store_true", help="print the summary as JSON")
+    stats.add_argument("--percentiles", metavar="P1,P2...", default=None,
+                       help="comma-separated list of percentiles (e.g. 50,95,99)")
 
     commands.add_parser("demo", help="show a deterministic sample trace")
     return parser
@@ -250,6 +342,7 @@ COMMANDS = {
     "spark": _spark,
     "bars": _bars,
     "hist": _hist,
+    "box": _box,
     "stats": _stats,
     "demo": _demo,
 }

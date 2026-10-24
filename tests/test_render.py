@@ -5,12 +5,13 @@ import unittest
 from gauge.render import (
     bar_chart,
     format_number,
+    render_box,
     render_histogram,
     resample,
     sparkline,
     stats_table,
 )
-from gauge.series import build_histogram, summarize
+from gauge.series import build_boxplot, build_histogram, summarize
 
 
 class SparklineTests(unittest.TestCase):
@@ -111,6 +112,13 @@ class StatsTableTests(unittest.TestCase):
         self.assertEqual("1e+20", format_number(1e20))
         self.assertEqual("0.816497", format_number(0.816496580927726))
 
+    def test_table_shows_custom_percentiles_aligned(self) -> None:
+        table = stats_table(summarize([float(n) for n in range(1, 101)], percentiles=[50, 95, 99]))
+        self.assertIn("p50", table)
+        self.assertIn("p95", table)
+        self.assertIn("p99", table)
+        self.assertNotIn("p90", table)
+
 
 class HistogramRenderTests(unittest.TestCase):
     """Bars scale to the largest count and every bin keeps a row."""
@@ -143,6 +151,37 @@ class HistogramRenderTests(unittest.TestCase):
     def test_a_narrow_width_is_refused(self) -> None:
         with self.assertRaises(ValueError):
             render_histogram(build_histogram([1.0, 2.0], 2), width=1)
+
+
+class BoxPlotRenderTests(unittest.TestCase):
+    """The box plot renders whiskers, quartiles, median and extrema (ADR-007)."""
+
+    def test_render_box_ascii(self) -> None:
+        vals = [float(n) for n in range(0, 101)]
+        rendered = render_box(build_boxplot(vals), width=21, ascii_only=True)
+        lines = rendered.splitlines()
+        self.assertEqual(2, len(lines))
+        self.assertEqual("|----[====|====]----|", lines[0])
+        self.assertIn("min: 0", lines[1])
+        self.assertIn("q1: 25", lines[1])
+        self.assertIn("med: 50", lines[1])
+        self.assertIn("q3: 75", lines[1])
+        self.assertIn("max: 100", lines[1])
+
+    def test_render_box_unicode(self) -> None:
+        vals = [float(n) for n in range(0, 101)]
+        rendered = render_box(build_boxplot(vals), width=21, ascii_only=False)
+        lines = rendered.splitlines()
+        self.assertEqual(2, len(lines))
+        self.assertEqual("\u251c\u2500\u2500\u2500\u2500[\u2550\u2550\u2550\u2550\u2502\u2550\u2550\u2550\u2550]\u2500\u2500\u2500\u2500\u2524", lines[0])
+
+    def test_render_box_flat_series(self) -> None:
+        rendered = render_box(build_boxplot([42.0, 42.0, 42.0]), width=20, ascii_only=True)
+        self.assertIn("[42]", rendered)
+
+    def test_narrow_width_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            render_box(build_boxplot([1.0, 2.0]), width=4)
 
 
 if __name__ == "__main__":
