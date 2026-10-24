@@ -1,5 +1,7 @@
 # gauge
 
+[![Built with AIKit](https://img.shields.io/badge/built%20with-AIKit-6f42c1)](https://github.com/Aegean-E/AIKit)
+
 A zero-dependency terminal ruler for numeric series. `gauge` reads numbers from arguments, a
 file or a pipe and draws a sparkline, signed bars, a histogram, a box plot or a compact
 statistics block. `stats --json` is the machine surface for another tool.
