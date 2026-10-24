@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "name": "gauge",
+  "test_command": "python -m unittest discover -s tests -t .",
+  "gates": {},
+  "ui_required": false,
+  "created": "2026-10-24"
+}
