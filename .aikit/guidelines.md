@@ -9,3 +9,4 @@ Persisted state carries a format version. A loader refuses a version it does not
 without modifying or quarantining that file; older versions migrate when a migration exists.
 
 ## Rules
+- **G-001** (ADR-001): The rendered text and the stats --json key set are contracts: change either only with an ADR and a golden test.

@@ -1,8 +1,15 @@
 # gauge
 
+A zero-dependency terminal ruler for numeric series. `gauge` reads numbers from arguments, a
+file or a pipe and draws a sparkline, signed bars or a compact statistics block. `stats --json`
+is the machine surface for another tool.
+
+It is deliberately small: one short-lived process, no configuration, no network access and no
+stored state.
+
 ## ⚡ 30-Second Cold-Start Quick Reference
 
-- **Runtime Prerequisites**: <FILL: each runtime this project needs and its minimum version>
+- **Runtime Prerequisites**: Python 3.9 or newer (standard library only; nothing to install)
 - **Canonical Regression Shield Gate**:
   ```bash
   python -m unittest discover -s tests -t .
@@ -16,11 +23,169 @@
 | Repair memory and map, then check | `python aikit.py fix gauge` |
 | Resume an interrupted task | `python aikit.py resume gauge` |
 
+## 🚀 Try It
+
+Run these from this project's root:
+
+```bash
+python -m gauge demo
+python -m gauge spark 0 1 2 3 4 5 6 7 --label latency
+python -m gauge bars 2 4 8 --width 20
+python -m gauge stats 2 3 5 8
+python -c "print('2, 3, 5, 8')" | python -m gauge stats --json
+python -m gauge bars --file latencies.txt --width 30
+```
+
+The demo needs no input and shows both surfaces:
+
+```text
+$ python -m gauge demo
+gauge demo: a deterministic 24-point latency trace (milliseconds)
+▆▆▇▇▇▇▆▆▆▆▅▄▃▂▁▁▁▂▃▅▆▇██
+
+count   24
+sum     1025.22
+min     17.79
+max     61.2
+mean    42.7175
+median  47.095
+p90     57.69
+stdev   13.3527
+```
+
+A labelled sparkline and a signed bar chart:
+
+```text
+$ python -m gauge spark 0 1 2 3 4 5 6 7 --label latency
+latency ▁▂▃▄▅▆▇█
+
+$ python -m gauge bars -4 0 6 --width 21 --ascii
+-4  ########|
+ 0          |
+ 6          |############
+```
+
+## 🧭 Commands
+
+| Command | What it prints |
+|---|---|
+| `spark` | One character per value, resampled to `--width` (default 60) |
+| `bars` | One labelled row per value around a shared zero axis (default width 40) |
+| `stats` | Count, sum, min, max, mean, median, p90 and stdev; `--json` for machines |
+| `demo` | A deterministic 24-point trace, useful as a smoke test |
+
+Every reading command accepts the same source arguments:
+
+| Argument | Meaning |
+|---|---|
+| `NUMBER ...` | Numbers as positional arguments, separated by whitespace or commas |
+| `--file PATH` | Read numbers from a UTF-8 file instead |
+| standard input | Read numbers from a pipe when neither of the above is given |
+| `--width N` | Chart width in cells, 2 to 1000 (spark default 60, bars default 40) |
+| `--ascii` | Force the ASCII twin of the Unicode blocks |
+| `--label TEXT` | Prefix a sparkline with a label |
+| `--json` | Print the summary object instead of the table (`stats` only) |
+
+Exactly one source may be used. `gauge` never prompts: with an interactive terminal and no
+numbers it stops with an error instead of waiting for input.
+
+### Input rules
+
+- Tokens are separated by any whitespace or comma, across any number of lines.
+- Values must be finite decimal numbers, including forms such as `.5`, `+2`, `-3` and `1e3`.
+- `nan`, `inf` and text are refused by name rather than silently skipped.
+- A trailing newline is optional; an empty source is an error.
+
+## 📐 Statistics
+
+The definitions are fixed so two runs cannot disagree (ADR-002):
+
+| Measurement | Definition |
+|---|---|
+| count | Number of values |
+| sum | `math.fsum` of all values |
+| min / max | Smallest / largest value |
+| mean | Sum divided by count |
+| median | Middle value, or the average of the middle pair for an even count |
+| p90 | Nearest-rank: the `ceil(0.9 * n)`-th smallest value |
+| stdev | Population standard deviation (dividing by `n`, not `n - 1`) |
+
+`--json` prints a single object with the keys `count`, `sum`, `min`, `max`, `mean`, `median`,
+`p90` and `stdev`, in that order.
+
+## 🎨 Rendering
+
+Sparklines use eight levels, from `▁` to `█`, and a flat series maps to the middle level. A
+series longer than `--width` is averaged into proportional buckets, so no value is randomly
+sampled or dropped. Bars grow from a shared zero axis, so negative values extend left and
+positive values extend right.
+
+`--ascii` swaps the blocks for `_.-=+*#@` and the axis for `|`. If standard output's encoding
+cannot represent `█` (for example a legacy Windows code page), the ASCII twin is selected
+automatically; set `PYTHONIOENCODING=utf-8` to keep the Unicode blocks in a redirected pipe.
+
+There is no colour, cursor movement or terminal-width probing: the output is exactly the bytes
+needed for a pipe or a golden test.
+
+## 🚦 Exit Codes
+
+| Code | Meaning |
+|---|---|
+| 0 | The requested surface was printed |
+| 1 | The input could not be read (for example a missing file) |
+| 2 | The command line or the numeric data is invalid |
+
+Errors print the `Error:`, `Why:` and `Fix:` triad so a failing pipeline explains itself.
+
 ## 📦 What's Inside
 
 ```text
 gauge/
-├── .gitignore                <- transient AIKit state excluded
+├── .gitignore
 ├── README.md
-└── .aikit/                   <- this project's memory: record, ledger, decisions
+├── pyproject.toml
+├── gauge/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── cli.py
+│   ├── render.py
+│   └── series.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_cli.py
+│   ├── test_render.py
+│   └── test_series.py
+├── tools/
+│   └── dogfood.py
+└── .aikit/                   <- project memory: ledger, decisions, codebase map
 ```
+
+`python -m gauge` needs no installation. The optional packaging metadata in `pyproject.toml`
+also allows `python -m pip install .` for a `gauge` console script; the tests and the dogfood
+runner use the module form so they never depend on an installed copy.
+
+## 🧪 Testing and Dogfooding
+
+- `python -m unittest discover -s tests -t .` runs 47 fast unit and command-line tests.
+- `python tools/dogfood.py` uses the product as a user would, then attacks empty input, bad
+  tokens, non-finite values, impossible widths, conflicting sources, a missing file, an unknown
+  flag and a legacy output encoding. It runs every child in a temporary sandbox, kills the whole
+  process tree on the way out, and verifies that the project tree is unchanged.
+
+The Phase 4 cockpit command runs the tests, the dogfood gate, the hygiene scan, the guidelines
+and map check, and the secret scan:
+
+```bash
+python aikit.py check gauge
+```
+
+## 🗺️ Design Notes
+
+- [ADR-001](.aikit/decisions.md): one stateless filter with stable text and JSON surfaces.
+- [ADR-002](.aikit/decisions.md): population spread, nearest-rank p90, averaged even median.
+- [ADR-003](.aikit/decisions.md): deterministic eight-level rendering with an ASCII twin.
+
+### Deliberate limits
+
+`gauge` is not a time-series database and does not plot timestamps, multiple series or
+statistical tests. It reads one series, renders it, and exits.
