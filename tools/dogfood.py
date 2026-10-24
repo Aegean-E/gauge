@@ -2,12 +2,12 @@
 """
 Gauge's dogfood runner: use the product as a user does, then attack its input edge.
 
-The golden path renders a sparkline, its ASCII twin, signed bars, the JSON summary, stdin and
-file sources, width resampling and the demo. The chaos track sends empty and malformed input,
-non-finite values, impossible widths, conflicting sources, a missing file, an unknown flag and a
-legacy pipe encoding. Every child runs in its own process group and is killed through a context
-manager; one temporary sandbox holds every file and the project tree is snapshotted before and
-after.
+The golden path renders a sparkline, its ASCII twin, signed bars, a histogram, the JSON summary,
+stdin and file sources, width resampling and the demo. The chaos track sends empty and malformed
+input, non-finite values, impossible widths and bin counts, conflicting sources, a missing file,
+an unknown flag and a legacy pipe encoding. Every child runs in its own process group and is
+killed through a context manager; one temporary sandbox holds every file and the project tree is
+snapshotted before and after.
 
 Usage: python tools/dogfood.py   (exit 0 pass, 1 fail, 2 cannot run)
 
@@ -160,6 +160,13 @@ def golden_path(box: Path, report: Report) -> None:
     report.step(code == 0 and len(lines) == 3 and all("|" in line for line in lines),
                 "signed bars keep a zero axis", f"exit {code}, {len(lines)} rows")
 
+    code, out, _ = run_cli(box, "hist", "1", "2", "2", "3", "3", "3",
+                           "--bins", "3", "--width", "12", "--ascii")
+    lines = out.splitlines()
+    report.step(code == 0 and len(lines) == 3 and all("[" in line for line in lines)
+                and "#" in out,
+                "hist bins the series into aligned rows", f"exit {code}, {len(lines)} rows")
+
     code, out, _ = run_cli(box, "spark", "--width", "20",
                            stdin_text=" ".join(str(n) for n in range(100)))
     report.step(code == 0 and len(out.strip()) == 20,
@@ -194,6 +201,10 @@ def chaos(box: Path, report: Report) -> None:
     code, _, err = run_cli(box, "bars", "1", "2", "--width", "1")
     report.step(code == 2 and "--width" in err,
                 "an impossible width is refused", f"exit {code}")
+
+    code, _, err = run_cli(box, "hist", "1", "2", "--bins", "0")
+    report.step(code == 2 and "--bins" in err,
+                "an impossible bin count is refused", f"exit {code}")
 
     code, _, err = run_cli(box, "stats", "--file", str(box / "missing.txt"))
     report.step(code == 1 and "cannot read" in err and "Fix:" in err,

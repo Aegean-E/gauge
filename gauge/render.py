@@ -3,7 +3,7 @@
 import math
 from typing import List, Sequence
 
-from gauge.series import Summary
+from gauge.series import Histogram, Summary
 
 UNICODE_LEVELS = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
 ASCII_LEVELS = "_.-=+*#@"
@@ -131,3 +131,34 @@ def stats_table(summary: Summary) -> str:
     )
     label_width = max(len(label) for label, _ in rows)
     return "\n".join(f"{label:<{label_width}}  {text}" for label, text in rows)
+
+
+def render_histogram(histogram: Histogram, width: int, ascii_only: bool = False) -> str:
+    """One row per bin: a right-open range label, a scaled bar and the count."""
+    if not histogram.counts:
+        raise ValueError("render_histogram needs at least one bin.")
+    if width < 2:
+        raise ValueError("render_histogram needs a width of at least 2.")
+    block = ASCII_BLOCK if ascii_only else UNICODE_BLOCK
+    flat = len(histogram.counts) == 1 and histogram.edges[0] == histogram.edges[-1]
+    if flat:
+        labels = [f"[{format_number(histogram.edges[0])}]"]
+    else:
+        labels = []
+        last = len(histogram.counts) - 1
+        for index in range(len(histogram.counts)):
+            low = histogram.edges[index]
+            high = histogram.edges[index + 1]
+            closing = "]" if index == last else ")"
+            labels.append(f"[{format_number(low)}, {format_number(high)}{closing}")
+    label_width = max(len(label) for label in labels)
+    max_count = max(histogram.counts)
+    count_width = len(str(max_count))
+    rows = []
+    for label, count in zip(labels, histogram.counts):
+        length = 0 if max_count == 0 else int(count / max_count * width + 0.5)
+        if count > 0:
+            length = max(1, length)
+        bar = block * length + " " * (width - length)
+        rows.append(f"{label:>{label_width}}  {bar}  {count:>{count_width}}")
+    return "\n".join(rows)

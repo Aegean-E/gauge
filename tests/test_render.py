@@ -2,8 +2,15 @@
 
 import unittest
 
-from gauge.render import bar_chart, format_number, resample, sparkline, stats_table
-from gauge.series import summarize
+from gauge.render import (
+    bar_chart,
+    format_number,
+    render_histogram,
+    resample,
+    sparkline,
+    stats_table,
+)
+from gauge.series import build_histogram, summarize
 
 
 class SparklineTests(unittest.TestCase):
@@ -103,6 +110,39 @@ class StatsTableTests(unittest.TestCase):
         self.assertEqual("0", format_number(-0.0))
         self.assertEqual("1e+20", format_number(1e20))
         self.assertEqual("0.816497", format_number(0.816496580927726))
+
+
+class HistogramRenderTests(unittest.TestCase):
+    """Bars scale to the largest count and every bin keeps a row."""
+
+    def test_bars_scale_to_the_largest_count(self) -> None:
+        self.assertEqual(
+            "[0, 0.5)  ###         1\n"
+            "[0.5, 1]  ##########  3",
+            render_histogram(build_histogram([0.0, 1.0, 1.0, 1.0], 2), width=10, ascii_only=True),
+        )
+
+    def test_a_flat_series_uses_one_compact_label(self) -> None:
+        self.assertEqual(
+            "[5]  #####  3",
+            render_histogram(build_histogram([5.0, 5.0, 5.0], 4), width=5, ascii_only=True),
+        )
+
+    def test_empty_bins_stay_visible(self) -> None:
+        self.assertEqual(
+            "[0, 3)  ######  1\n"
+            "[3, 6)          0\n"
+            "[6, 9]  ######  1",
+            render_histogram(build_histogram([0.0, 9.0], 3), width=6, ascii_only=True),
+        )
+
+    def test_the_unicode_block_is_the_default(self) -> None:
+        rendered = render_histogram(build_histogram([1.0, 1.0, 2.0], 2), width=4)
+        self.assertIn("\u2588", rendered)
+
+    def test_a_narrow_width_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            render_histogram(build_histogram([1.0, 2.0], 2), width=1)
 
 
 if __name__ == "__main__":

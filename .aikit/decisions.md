@@ -33,3 +33,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Decision**: Sparklines use the eight Unicode blocks `▁▂▃▄▅▆▇█` with half-up rounding and map a flat series to the middle level. `--ascii` swaps in `_.-=+*#@`; bars swap `█`/`│` for `#`/`|`. When standard output's encoding cannot represent the block character, the ASCII twin is selected automatically. There is no colour, cursor movement or terminal-width probing.
 - **Consequences**: Golden tests pin every surface and a legacy pipe still produces valid output. Users choose `--width` explicitly and get no colour; the automatic fallback means the default glyphs depend on the output encoding, which is documented.
 
+### ADR-004: Equal-width histogram bins with a closed maximum
+- **Date**: 2026-10-24
+- **Status**: Accepted
+- **Context**: A histogram adds a distribution surface, but the bin boundaries, edge ownership and flat-series case can each be defined several ways. Leaving them to the renderer would make two runs disagree and the output impossible to pin.
+- **Decision**: `hist` splits `[min, max]` into `--bins` equal-width bins (default 10, 1 to 100). A bin is right-open, `[low, high)`, except the last, which is closed, `[low, high]`; a value on an inner edge belongs to the upper bin, and the maximum is clamped into the last bin. A flat series is one bin labelled `[value]`. Every bin is printed, including empty ones; bar length is the count divided by the largest count, rounded half-up, with at least one cell for a non-zero count. Edges are weighted interpolations, `low * (1 - t) + high * t`, so a span near the float limit cannot overflow. Histogram bars use the same Unicode block and ASCII twin as the other surfaces.
+- **Consequences**: Bins are deterministic and explainable, and the renderer has a golden contract. Printing every bin makes the output as tall as `--bins`, and very close edges can share the same six-significant-digit label; choosing fewer bins avoids that. This adds a fifth subcommand but leaves ADR-001's stateless-filter architecture unchanged.
+

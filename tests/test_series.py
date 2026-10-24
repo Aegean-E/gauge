@@ -3,7 +3,7 @@
 import math
 import unittest
 
-from gauge.series import parse_numbers, percentile, summarize
+from gauge.series import build_histogram, parse_numbers, percentile, summarize
 
 
 class ParseNumbersTests(unittest.TestCase):
@@ -104,6 +104,52 @@ class SummaryTests(unittest.TestCase):
             summarize([])
         with self.assertRaises(ValueError):
             summarize([1.0, float("nan")])
+
+
+class HistogramTests(unittest.TestCase):
+    """The equal-width bin contract recorded in ADR-004."""
+
+    def test_ten_values_split_evenly_across_five_bins(self) -> None:
+        histogram = build_histogram([float(n) for n in range(10)], 5)
+        self.assertEqual(6, len(histogram.edges))
+        self.assertEqual((0.0, 9.0), (histogram.edges[0], histogram.edges[-1]))
+        self.assertEqual((2, 2, 2, 2, 2), histogram.counts)
+        self.assertEqual(10, sum(histogram.counts))
+
+    def test_the_maximum_belongs_to_the_closed_last_bin(self) -> None:
+        histogram = build_histogram([0.0, 10.0], 2)
+        self.assertEqual((0.0, 5.0, 10.0), histogram.edges)
+        self.assertEqual((1, 1), histogram.counts)
+
+    def test_an_inner_edge_belongs_to_the_upper_bin(self) -> None:
+        self.assertEqual((1, 2), build_histogram([0.0, 5.0, 10.0], 2).counts)
+
+    def test_a_flat_series_is_one_bin(self) -> None:
+        histogram = build_histogram([5.0, 5.0, 5.0], 4)
+        self.assertEqual((5.0, 5.0), histogram.edges)
+        self.assertEqual((3,), histogram.counts)
+
+    def test_negative_ranges_bin_without_special_cases(self) -> None:
+        histogram = build_histogram([-3.0, -2.0, -1.0, 0.0], 3)
+        self.assertEqual((-3.0, -2.0, -1.0, 0.0), histogram.edges)
+        self.assertEqual((1, 1, 2), histogram.counts)
+
+    def test_extreme_opposite_signs_do_not_overflow(self) -> None:
+        histogram = build_histogram([1e308, -1e308], 2)
+        self.assertEqual((1, 1), histogram.counts)
+        self.assertTrue(all(math.isfinite(edge) for edge in histogram.edges))
+
+    def test_bin_counts_outside_the_bounds_are_refused(self) -> None:
+        for bins in (0, 101):
+            with self.subTest(bins=bins):
+                with self.assertRaisesRegex(ValueError, "between 1 and 100"):
+                    build_histogram([1.0], bins)
+
+    def test_an_empty_or_non_finite_series_is_refused(self) -> None:
+        with self.assertRaisesRegex(ValueError, "empty series"):
+            build_histogram([], 10)
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            build_histogram([1.0, float("inf")], 10)
 
 
 if __name__ == "__main__":

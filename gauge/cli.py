@@ -11,10 +11,11 @@ from gauge import __version__
 from gauge.render import (
     UNICODE_BLOCK,
     bar_chart,
+    render_histogram,
     sparkline,
     stats_table,
 )
-from gauge.series import parse_numbers, summarize
+from gauge.series import build_histogram, parse_numbers, summarize
 
 
 class InputError(Exception):
@@ -91,6 +92,18 @@ def _checked_width(width: Optional[int], default: int) -> int:
     return value
 
 
+def _checked_bins(bins: Optional[int]) -> int:
+    """The requested bin count, bounded so every row stays readable."""
+    value = 10 if bins is None else bins
+    if not 1 <= value <= 100:
+        raise InputError(
+            f"--bins must be between 1 and 100, got {value}.",
+            "a histogram needs at least one bin, and more than 100 bins is noise in a terminal.",
+            "choose a bin count from 1 to 100, for example --bins 10.",
+        )
+    return value
+
+
 def _stdout_supports_unicode() -> bool:
     """Whether the output encoding can carry the block character, so a legacy pipe still works."""
     encoding = getattr(sys.stdout, "encoding", None)
@@ -120,6 +133,14 @@ def _bars(args: argparse.Namespace) -> int:
     """Print one labelled row per value with a signed zero axis."""
     values = _read_values(args)
     print(bar_chart(values, _checked_width(args.width, 40), _use_ascii(args.ascii)))
+    return 0
+
+
+def _hist(args: argparse.Namespace) -> int:
+    """Print one row per equal-width bin, with the last bin closed."""
+    values = _read_values(args)
+    histogram = build_histogram(values, _checked_bins(args.bins))
+    print(render_histogram(histogram, _checked_width(args.width, 40), _use_ascii(args.ascii)))
     return 0
 
 
@@ -163,14 +184,15 @@ def _add_input_options(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """The CLI grammar: three reading surfaces plus a self-contained demo."""
+    """The CLI grammar: four reading surfaces plus a self-contained demo."""
     parser = argparse.ArgumentParser(
         prog="gauge",
-        description="Turn a numeric series into a sparkline, signed bars or summary statistics.",
+        description="Turn a numeric series into a sparkline, signed bars, a histogram or "
+                    "summary statistics.",
     )
     parser.add_argument("--version", action="version", version=f"gauge {__version__}")
     commands = parser.add_subparsers(dest="command", required=True,
-                                     metavar="{spark,bars,stats,demo}")
+                                     metavar="{spark,bars,hist,stats,demo}")
 
     spark = commands.add_parser("spark", help="draw a sparkline of the series")
     _add_input_options(spark)
@@ -186,6 +208,15 @@ def build_parser() -> argparse.ArgumentParser:
     bars.add_argument("--width", type=int, default=None,
                       help="chart width in cells, 2-1000 (default: 40)")
     bars.add_argument("--ascii", action="store_true",
+                      help="use the ASCII twin instead of Unicode blocks")
+
+    hist = commands.add_parser("hist", help="draw an equal-width histogram of the series")
+    _add_input_options(hist)
+    hist.add_argument("--bins", type=int, default=None,
+                      help="number of equal-width bins, 1-100 (default: 10)")
+    hist.add_argument("--width", type=int, default=None,
+                      help="bar width in cells, 2-1000 (default: 40)")
+    hist.add_argument("--ascii", action="store_true",
                       help="use the ASCII twin instead of Unicode blocks")
 
     stats = commands.add_parser("stats", help="print count, extrema, mean, median, p90 and stdev")
@@ -218,6 +249,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 COMMANDS = {
     "spark": _spark,
     "bars": _bars,
+    "hist": _hist,
     "stats": _stats,
     "demo": _demo,
 }

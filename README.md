@@ -1,8 +1,8 @@
 # gauge
 
 A zero-dependency terminal ruler for numeric series. `gauge` reads numbers from arguments, a
-file or a pipe and draws a sparkline, signed bars or a compact statistics block. `stats --json`
-is the machine surface for another tool.
+file or a pipe and draws a sparkline, signed bars, a histogram or a compact statistics block.
+`stats --json` is the machine surface for another tool.
 
 It is deliberately small: one short-lived process, no configuration, no network access and no
 stored state.
@@ -31,12 +31,13 @@ Run these from this project's root:
 python -m gauge demo
 python -m gauge spark 0 1 2 3 4 5 6 7 --label latency
 python -m gauge bars 2 4 8 --width 20
+python -m gauge hist 1 2 2 3 3 3 --bins 3 --width 12
 python -m gauge stats 2 3 5 8
 python -c "print('2, 3, 5, 8')" | python -m gauge stats --json
 python -m gauge bars --file latencies.txt --width 30
 ```
 
-The demo needs no input and shows both surfaces:
+The demo needs no input and shows the sparkline and statistics surfaces:
 
 ```text
 $ python -m gauge demo
@@ -65,12 +66,22 @@ $ python -m gauge bars -4 0 6 --width 21 --ascii
  6          |############
 ```
 
+The histogram bins the same series without a plotting library:
+
+```text
+$ python -m gauge hist 1 2 2 3 3 3 --bins 3 --width 12 --ascii
+      [1, 1.66667)  ####          1
+[1.66667, 2.33333)  ########      2
+      [2.33333, 3]  ############  3
+```
+
 ## 🧭 Commands
 
 | Command | What it prints |
 |---|---|
 | `spark` | One character per value, resampled to `--width` (default 60) |
 | `bars` | One labelled row per value around a shared zero axis (default width 40) |
+| `hist` | One row per equal-width bin with a scaled bar and its count (default width 40) |
 | `stats` | Count, sum, min, max, mean, median, p90 and stdev; `--json` for machines |
 | `demo` | A deterministic 24-point trace, useful as a smoke test |
 
@@ -81,7 +92,8 @@ Every reading command accepts the same source arguments:
 | `NUMBER ...` | Numbers as positional arguments, separated by whitespace or commas |
 | `--file PATH` | Read numbers from a UTF-8 file instead |
 | standard input | Read numbers from a pipe when neither of the above is given |
-| `--width N` | Chart width in cells, 2 to 1000 (spark default 60, bars default 40) |
+| `--width N` | Chart width in cells, 2 to 1000 (spark default 60, bars and hist default 40) |
+| `--bins N` | Number of equal-width histogram bins, 1 to 100 (hist default 10) |
 | `--ascii` | Force the ASCII twin of the Unicode blocks |
 | `--label TEXT` | Prefix a sparkline with a label |
 | `--json` | Print the summary object instead of the table (`stats` only) |
@@ -117,12 +129,21 @@ The computation scales by the largest magnitude, so values near the float limit 
 `1e308` and `-1e308`) still produce finite statistics. A sum that cannot be represented as a
 float is refused with the error triad instead of printed as infinity.
 
+## 📊 Histograms
+
+`hist` splits the range from the smallest to the largest value into `--bins` equal-width bins
+(default 10, from 1 to 100). Each bin is right-open, `[low, high)`, except the last, which is
+closed, `[low, high]`; a value on an inner edge belongs to the upper bin, and the maximum belongs
+to the last bin. A flat series is one bin labelled with its value. Every bin is printed, including
+empty ones, and the bars scale to the largest count. ADR-004 records the rule.
+
 ## 🎨 Rendering
 
 Sparklines use eight levels, from `▁` to `█`, and a flat series maps to the middle level. A
 series longer than `--width` is averaged into proportional buckets, so no value is randomly
 sampled or dropped. Bars grow from a shared zero axis, so negative values extend left and
-positive values extend right.
+positive values extend right. Histogram bars grow from the left and use the same block; a
+non-zero count always keeps at least one cell.
 
 `--ascii` swaps the blocks for `_.-=+*#@` and the axis for `|`. If standard output's encoding
 cannot represent `█` (for example a legacy Windows code page), the ASCII twin is selected
@@ -170,11 +191,12 @@ so they never depend on an installed copy.
 
 ## 🧪 Testing and Dogfooding
 
-- `python -m unittest discover -s tests -t .` runs 54 fast unit and command-line tests.
-- `python tools/dogfood.py` uses the product as a user would, then attacks empty input, bad
-  tokens, non-finite values, impossible widths, conflicting sources, a missing file, an unknown
-  flag and a legacy output encoding. It runs every child in a temporary sandbox, kills the whole
-  process tree on the way out, and verifies that the project tree is unchanged.
+- `python -m unittest discover -s tests -t .` runs 71 fast unit and command-line tests.
+- `python tools/dogfood.py` uses the product as a user would, including a histogram, then
+  attacks empty input, bad tokens, non-finite values, impossible widths and bin counts,
+  conflicting sources, a missing file, an unknown flag and a legacy output encoding. It runs
+  every child in a temporary sandbox, kills the whole process tree on the way out, and verifies
+  that the project tree is unchanged.
 
 The Phase 4 cockpit command runs the tests, the dogfood gate, the hygiene scan, the guidelines
 and map check, and the secret scan:
@@ -188,6 +210,7 @@ python aikit.py check gauge
 - [ADR-001](.aikit/decisions.md): one stateless filter with stable text and JSON surfaces.
 - [ADR-002](.aikit/decisions.md): population spread, nearest-rank p90, averaged even median.
 - [ADR-003](.aikit/decisions.md): deterministic eight-level rendering with an ASCII twin.
+- [ADR-004](.aikit/decisions.md): equal-width histogram bins with a closed maximum.
 
 ### Deliberate limits
 

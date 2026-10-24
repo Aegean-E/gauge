@@ -1,9 +1,10 @@
-"""Numeric input parsing and summary statistics for gauge."""
+"""Numeric input parsing, summary statistics and histogram binning for gauge."""
 
 import math
 import re
+from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 _SEPARATOR = re.compile(r"[,\s]+")
 
@@ -33,6 +34,14 @@ class Summary:
             "p90": self.p90,
             "stdev": self.stdev,
         }
+
+
+@dataclass(frozen=True)
+class Histogram:
+    """Equal-width bins: `edges` holds one more boundary than `counts` holds counts."""
+
+    edges: Tuple[float, ...]
+    counts: Tuple[int, ...]
 
 
 def parse_numbers(chunks: Iterable[str]) -> List[float]:
@@ -112,3 +121,31 @@ def summarize(values: List[float]) -> Summary:
         p90=percentile(values, 0.9),
         stdev=stdev,
     )
+
+
+def build_histogram(values: List[float], bins: int) -> Histogram:
+    """
+    Equal-width bins over [min, max], right-open except the last, which is closed.
+
+    A flat series is one bin holding every value, and edges are weighted interpolations so a span
+    near the float limit cannot overflow. ADR-004 records the contract.
+    """
+    if not values:
+        raise ValueError("cannot bin an empty series.")
+    if not 1 <= bins <= 100:
+        raise ValueError("bins must be between 1 and 100.")
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("cannot bin a series with a non-finite value.")
+    low = min(values)
+    high = max(values)
+    if low == high:
+        return Histogram(edges=(low, high), counts=(len(values),))
+    edges = tuple(
+        math.fsum((low * (1.0 - index / bins), high * (index / bins)))
+        for index in range(bins + 1)
+    )
+    counts = [0] * bins
+    for value in values:
+        index = bisect_right(edges, value) - 1
+        counts[min(bins - 1, max(0, index))] += 1
+    return Histogram(edges=edges, counts=tuple(counts))

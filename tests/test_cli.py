@@ -137,6 +137,34 @@ class GaugeCliTests(unittest.TestCase):
         self.assertIn("Why:", err)
         self.assertIn("Fix:", err)
 
+    def test_hist_renders_one_row_per_bin(self) -> None:
+        code, out, _ = self._run(
+            ["hist", "1", "2", "2", "3", "3", "3", "--bins", "3", "--width", "12", "--ascii"]
+        )
+        lines = out.splitlines()
+        self.assertEqual(0, code)
+        self.assertEqual(3, len(lines))
+        self.assertTrue(all("[" in line and "#" in line for line in lines))
+        self.assertTrue(out.isascii())
+
+    def test_hist_flat_series_is_one_bin(self) -> None:
+        code, out, _ = self._run(["hist", "5", "5", "5", "--bins", "10"])
+        self.assertEqual(0, code)
+        self.assertEqual(1, len(out.splitlines()))
+        self.assertIn("[5]", out)
+
+    def test_hist_bins_outside_the_bounds_are_refused(self) -> None:
+        for bins in ("0", "101"):
+            with self.subTest(bins=bins):
+                code, _, err = self._run(["hist", "1", "2", "--bins", bins])
+                self.assertEqual(2, code)
+                self.assertIn("--bins must be between 1 and 100", err)
+
+    def test_hist_extreme_values_stay_finite(self) -> None:
+        code, out, _ = self._run(["hist", "1e308", "-1e308", "--bins", "2", "--ascii"])
+        self.assertEqual(0, code)
+        self.assertEqual(2, len(out.splitlines()))
+
     def test_demo_shows_both_surfaces(self) -> None:
         code, out, _ = self._run(["demo"])
         self.assertEqual(0, code)
@@ -155,7 +183,7 @@ class GaugeCliTests(unittest.TestCase):
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
             main(["--version"])
         self.assertEqual(0, raised.exception.code)
-        self.assertIn("gauge 1.0.0", out.getvalue())
+        self.assertIn("gauge 1.1.0", out.getvalue())
 
 
 if __name__ == "__main__":

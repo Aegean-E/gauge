@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gauge"
-version = "1.0.0"
+version = "1.1.0"
 description = "A zero-dependency terminal ruler for numeric series."
 readme = "README.md"
 requires-python = ">=3.9"
