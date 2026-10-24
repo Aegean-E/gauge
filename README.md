@@ -164,9 +164,9 @@ gauge/
 └── .aikit/                   <- project memory: ledger, decisions, codebase map
 ```
 
-`python -m gauge` needs no installation. The optional packaging metadata in `pyproject.toml`
-also allows `python -m pip install .` for a `gauge` console script; the tests and the dogfood
-runner use the module form so they never depend on an installed copy.
+`python -m gauge` needs no installation. The optional packaging metadata in `pyproject.toml` can
+also be used with `python -m pip install .`; the tests and the dogfood runner use the module form
+so they never depend on an installed copy.
 
 ## 🧪 Testing and Dogfooding
 

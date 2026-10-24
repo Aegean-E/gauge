@@ -1,12 +1,12 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "gauge-extremes-v1",
+    "task_id": "gauge-docs-v1",
     "last_phase": "phase 3",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1792828640.194347,
-    "completed_at": 1792828644.9195971
+    "updated_at": 1792828702.8825607,
+    "completed_at": 1792828707.8088138
   },
   "checkpoints": [
     {
@@ -108,6 +108,25 @@
       "status": "completed",
       "timestamp": 1792828644.9195986,
       "timestamp_str": "2026-10-24 10:57:24"
+    },
+    {
+      "task_id": "gauge-docs-v1",
+      "phase": "phase 3",
+      "phase_num": 3,
+      "description": "[1/1] Correct the installation note so it states what the packaging metadata actually provides; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1792828702.8825607,
+      "timestamp_str": "2026-10-24 10:58:22"
+    },
+    {
+      "task_id": "gauge-docs-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'gauge-docs-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1792828707.8088157,
+      "timestamp_str": "2026-10-24 10:58:27"
     }
   ]
 }
