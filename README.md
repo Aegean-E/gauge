@@ -189,6 +189,8 @@ Errors print the `Error:`, `Why:` and `Fix:` triad so a failing pipeline explain
 gauge/
 ├── .gitignore
 ├── README.md
+├── COMMERCIAL.md
+├── LICENSE
 ├── pyproject.toml
 ├── gauge/
 │   ├── __init__.py
