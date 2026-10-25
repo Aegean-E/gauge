@@ -3,6 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
+license = { text = "AGPL-3.0-or-later" }
 name = "gauge"
 version = "1.2.0"
 description = "A zero-dependency terminal ruler for numeric series."
