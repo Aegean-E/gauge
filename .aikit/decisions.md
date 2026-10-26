@@ -61,6 +61,8 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Decision**: Add `box` subcommand. `build_boxplot` computes the 5-number summary using nearest-rank percentiles for Q1 (0.25) and Q3 (0.75) and the averaged even median. `render_box` renders a horizontal ruler across `--width` cells (default 40, minimum 5) using Unicode `├─[═│═]─┤` and ASCII `|-[=|=]-|`, followed by a line listing the 5 numbers. A flat series renders as `[value]`.
 - **Consequences**: Adds a sixth subcommand without changing any existing contract. Golden tests pin the rendering across widths and flat series.
 
+## Licensing migration (v1.2.0-agpl)
 
-
-
+- New versions use the Aegean License 1.1 (AL-1.1); versions up to and including `v1.2.0-agpl` remain under GNU AGPL-3.0.
+- Rights holder: AegeanWorks; commercial use under ACL-1.0.
+- Counsel review of the 1.1 texts remains pending.
