@@ -245,8 +245,6 @@ python aikit.py check gauge
 `gauge` is not a time-series database and does not plot timestamps, multiple series or
 statistical tests. It reads one series, renders it, and exits.
 
-> **License history:** versions up to and including `v1.2.0-agpl` remain available under GNU AGPL-3.0.
-
 ## 📜 License
 
 Free for personal use under the Aegean License 1.1 (AL-1.1); see [LICENSE](LICENSE). Any commercial use needs the Aegean Commercial License 1.0 (ACL-1.0); see [COMMERCIAL.md](COMMERCIAL.md).
