@@ -16,6 +16,9 @@
   "ui_source": "detected",
   "topics": [
     "aikit",
+    "source-available",
+    "aegean-license",
+    "commercial-license",
     "cli",
     "data-visualization",
     "histogram",
@@ -25,16 +28,13 @@
     "terminal",
     "zero-dependencies",
     "box-plot",
-    "source-available",
     "aegeanworks",
     "command-line-tool",
     "developer-tools",
-    "software",
     "data-analysis",
     "numeric",
     "terminal-ui",
-    "data-science",
-    "metrics"
+    "data-science"
   ],
   "topics_source": "ai:kilo:2026-10-27",
   "topics_reviewed_at": "2026-10-28",
@@ -61,5 +61,10 @@
   "topics_choice_round4": [
     "data-science",
     "metrics"
+  ],
+  "license_topics": [
+    "source-available",
+    "aegean-license",
+    "commercial-license"
   ]
 }
