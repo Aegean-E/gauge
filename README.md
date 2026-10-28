@@ -1,7 +1,7 @@
 # gauge
 
 <!-- aegean:media:start -->
-<p align="center"><img src="assets/logo.png" alt="Gauge logo" width="96" height="96"></p>
+<p align="center"><img src="assets/logo.jpg" alt="Gauge logo" width="96" height="96"></p>
 <p align="center"><img src="assets/social-preview.png" alt="Gauge social preview" width="100%"></p>
 <!-- aegean:media:end -->
 
