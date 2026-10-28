@@ -5,53 +5,48 @@
   "has_ui": false,
   "ui_kind": "cli",
   "palette": [
-    "#0b1220",
-    "#1e293b",
-    "#a78bfa",
-    "#f8fafc"
+    "#140b0b",
+    "#2b1515",
+    "#f87171",
+    "#fcd34d"
   ],
+  "motif": "gauge",
+  "layout": "left",
   "assets": {
     "logo": {
       "path": "assets/logo.svg",
       "status": "approved",
       "commit": "",
-      "generated_at": "2026-10-28T08:02:28",
+      "generated_at": "2026-10-28T08:46:56",
       "review": {
         "status": "approved",
         "reviewer": "subagent:vision-review",
         "method": "vision",
-        "notes": "GA monogram in lavender, dark background, legible at small size.",
-        "score": 93,
-        "reviewed_at": "2026-10-28T08:10:42"
+        "notes": "GA speedometer, legible",
+        "score": 90,
+        "reviewed_at": "2026-10-28T08:58:21"
       }
     },
     "social_preview": {
       "path": "assets/social-preview.svg",
       "status": "approved",
       "commit": "",
-      "generated_at": "2026-10-28T08:02:28",
+      "generated_at": "2026-10-28T08:46:56",
       "review": {
         "status": "approved",
         "reviewer": "subagent:vision-review",
         "method": "vision",
-        "notes": "GA icon, title, numeric series ruler description, CLI tag.",
-        "score": 93,
-        "reviewed_at": "2026-10-28T08:10:42"
+        "notes": "Consistent template, legible",
+        "score": 89,
+        "reviewed_at": "2026-10-28T08:58:21"
       }
     },
     "social_preview_png": {
       "path": "assets/social-preview.png",
-      "status": "approved",
+      "status": "pending_review",
       "commit": "",
-      "generated_at": "2026-10-28T08:02:29",
-      "review": {
-        "status": "approved",
-        "reviewer": "subagent:vision-review",
-        "method": "structural",
-        "notes": "Rendered from the approved 1280x640 social SVG; exact dimensions verified.",
-        "score": null,
-        "reviewed_at": "2026-10-28T08:16:35"
-      }
+      "generated_at": "2026-10-28T08:46:57",
+      "review": null
     }
   },
   "screenshots": []

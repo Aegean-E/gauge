@@ -1,15 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc" data-motif="gauge" data-layout="left">
   <title id="title">Gauge logo</title>
-  <desc id="desc">A geometric monogram for Gauge from AegeanWorks.</desc>
+  <desc id="desc">Project-specific gauge mark for Gauge; AegeanWorks identity.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#1e293b"/></linearGradient>
-    <linearGradient id="ac" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#f8fafc"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#140b0b"/><stop offset="1" stop-color="#2b1515"/></linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f87171"/><stop offset="1" stop-color="#fcd34d"/></linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="168" fill="none" stroke="#a78bfa" stroke-opacity="0.22" stroke-width="2"/>
-  <circle cx="256" cy="256" r="132" fill="none" stroke="#a78bfa" stroke-opacity="0.30" stroke-width="2"/>
-  <path d="M126 314c44-72 88-108 132-108s88 36 132 108" fill="none" stroke="#a78bfa" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round"/>
-  <path d="M126 338c44 46 88 70 132 70s88-24 132-70" fill="none" stroke="#f8fafc" stroke-opacity="0.28" stroke-width="3" stroke-linecap="round"/>
-  <text x="256" y="286" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="132" font-weight="700" fill="url(#ac)" letter-spacing="2">GA</text>
-  <text x="256" y="424" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" letter-spacing="8" fill="#f8fafc" fill-opacity="0.62">AEGEANWORKS</text>
+  <circle cx="256" cy="238" r="164" fill="none" stroke="#f87171" stroke-opacity="0.18" stroke-width="2"/>
+  <g transform="translate(256 232) scale(1.62)" opacity="1.0"><path d="M-54 28A54 54 0 0 1 54 28" fill="none" stroke="#f87171" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M-54 28H54M-30 20V10M0 16V2M30 20V10" fill="none" stroke="#f87171" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 24L30 -18" fill="none" stroke="#fcd34d" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="0" cy="24" r="6" fill="#fcd34d"/></g>
+  <text x="256" y="404" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="62" font-weight="700" fill="url(#mark)" letter-spacing="3">GA</text>
+  <text x="256" y="458" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="17" letter-spacing="6" fill="#F8FAFC" fill-opacity="0.55">AEGEANWORKS</text>
 </svg>
