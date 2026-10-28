@@ -16,6 +16,7 @@
   "ui_source": "detected",
   "topics": [
     "aikit",
+    "aikit-integrated",
     "source-available",
     "aegean-license",
     "commercial-license",
@@ -33,8 +34,7 @@
     "developer-tools",
     "data-analysis",
     "numeric",
-    "terminal-ui",
-    "data-science"
+    "terminal-ui"
   ],
   "topics_source": "ai:kilo:2026-10-27",
   "topics_reviewed_at": "2026-10-28",
