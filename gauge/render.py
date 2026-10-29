@@ -1,7 +1,7 @@
 """Text renderers: sparklines, signed bar charts and a statistics table."""
 
 import math
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 from gauge.series import BoxPlot, Histogram, Summary
 
@@ -18,6 +18,18 @@ def format_number(value: float) -> str:
     if value == 0:
         return "0"
     return f"{value:.6g}"
+
+
+def _edge_texts(low: float, high: float) -> Tuple[str, str]:
+    """Labels for one bin's edges, adding digits only when six would collapse them."""
+    for digits in (6, 9, 12, 15, 17):
+        if digits == 6:
+            left, right = format_number(low), format_number(high)
+        else:
+            left, right = f"{low:.{digits}g}", f"{high:.{digits}g}"
+        if left != right:
+            break
+    return left, right
 
 
 def resample(values: Sequence[float], width: int) -> List[float]:
@@ -155,7 +167,8 @@ def render_histogram(histogram: Histogram, width: int, ascii_only: bool = False)
             low = histogram.edges[index]
             high = histogram.edges[index + 1]
             closing = "]" if index == last else ")"
-            labels.append(f"[{format_number(low)}, {format_number(high)}{closing}")
+            low_text, high_text = _edge_texts(low, high)
+            labels.append(f"[{low_text}, {high_text}{closing}")
     label_width = max(len(label) for label in labels)
     max_count = max(histogram.counts)
     count_width = len(str(max_count))
@@ -195,6 +208,18 @@ def render_box(boxplot: BoxPlot, width: int = 40, ascii_only: bool = False) -> s
     pos_q3 = _position(boxplot.q3, low, high, width)
     pos_max = _position(high, low, high, width)
 
+    # Rounding can land the median on an edge; give it a cell inside the box when there is room.
+    if pos_med == pos_q1 and pos_q1 > pos_min:
+        pos_q1 -= 1
+    if pos_med == pos_q3 and pos_q3 < pos_max:
+        pos_q3 += 1
+    # A collapsed box still needs two cells so both brackets survive.
+    if pos_q3 == pos_q1:
+        if pos_q3 < pos_max:
+            pos_q3 += 1
+        elif pos_q1 > pos_min:
+            pos_q1 -= 1
+
     cells = [" "] * width
 
     # Whiskers
@@ -209,9 +234,10 @@ def render_box(boxplot: BoxPlot, width: int = 40, ascii_only: bool = False) -> s
     for idx in range(pos_q1, pos_q3 + 1):
         cells[idx] = box_fill
 
+    # The brackets are structural, so they win any residual collision with the median.
+    cells[pos_med] = median_char
     cells[pos_q1] = box_left
     cells[pos_q3] = box_right
-    cells[pos_med] = median_char
 
     ruler = "".join(cells)
     summary_line = (

@@ -152,6 +152,14 @@ class HistogramRenderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             render_histogram(build_histogram([1.0, 2.0], 2), width=1)
 
+    def test_edges_that_share_six_digits_stay_distinguishable(self) -> None:
+        rendered = render_histogram(
+            build_histogram([1e16, 1e16 + 2, 1e16 + 4], 5), width=6, ascii_only=True
+        )
+        labels = [line.split("  ")[0].strip() for line in rendered.splitlines()]
+        self.assertEqual(len(labels), len(set(labels)))
+        self.assertIn("10000000000000002", rendered)
+
 
 class BoxPlotRenderTests(unittest.TestCase):
     """The box plot renders whiskers, quartiles, median and extrema (ADR-007)."""
@@ -178,6 +186,14 @@ class BoxPlotRenderTests(unittest.TestCase):
     def test_render_box_flat_series(self) -> None:
         rendered = render_box(build_boxplot([42.0, 42.0, 42.0]), width=20, ascii_only=True)
         self.assertIn("[42]", rendered)
+
+    def test_a_collapsed_box_still_shows_both_brackets(self) -> None:
+        rendered = render_box(build_boxplot([0.0, 0.0, 0.0, 0.0, 10.0]), width=21, ascii_only=True)
+        self.assertEqual("[]------------------|", rendered.splitlines()[0])
+
+    def test_a_box_whose_median_is_the_maximum_keeps_its_right_bracket(self) -> None:
+        rendered = render_box(build_boxplot([0.0, 100.0, 100.0]), width=21, ascii_only=True)
+        self.assertEqual("[===================]", rendered.splitlines()[0])
 
     def test_narrow_width_refused(self) -> None:
         with self.assertRaises(ValueError):
