@@ -4,7 +4,7 @@ import math
 import re
 from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 _SEPARATOR = re.compile(r"[,\s]+")
 
